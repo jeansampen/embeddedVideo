@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Button, Platform, StyleSheet, Text, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { LinkingOptions, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import YoutubePlayer from "react-native-youtube-iframe";
 import { useCallback, useState } from 'react';
@@ -10,7 +10,7 @@ const HomeScreen = ({navigation}) => {
   const onPressLearnMore = () => {
     //For generating alert on buttton click
     // alert('Hello');
-    navigation.navigate('Video', {videoUrl: 'Jane'})
+    navigation.navigate('Video', {videoUrl: 'YE7VzlLtp-4'})
   };
 
 
@@ -53,11 +53,23 @@ function ViewVideoScreen() {
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+
+  const linking : LinkingOptions<{}> = {
+    prefixes: [
+      /* your linking prefixes */
+    ],
+    config: {
+      screens: {
+        Home: '/home',
+        Video: '/video',
+      },
+    }
+  };
   
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator>
-        <Stack.Screen name="home" component={HomeScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Video" component={ViewVideoScreen} />
       </Stack.Navigator>
     </NavigationContainer>
