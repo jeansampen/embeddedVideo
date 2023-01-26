@@ -179,14 +179,11 @@ export const MAIN_SCRIPT = (
     <div class="container">
       <div class="video" id="player" />
     </div>
-
     <script>
       var tag = document.createElement('script');
-
       tag.src = "https://www.youtube.com/iframe_api";
       var firstScriptTag = document.getElementsByTagName('script')[0];
       firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
       var player;
       function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
@@ -197,7 +194,6 @@ export const MAIN_SCRIPT = (
             ${listParam}
             ${listTypeParam}
             ${playlistParam}
-
             end: ${end},
             rel: ${rel_s},
             playsinline: 1,
@@ -221,34 +217,35 @@ export const MAIN_SCRIPT = (
           }
         });
       }
-
+      function playerPostMessage(event) {
+        if(window.ReactNativeWebView){
+          window.ReactNativeWebView.postMessage(event);
+        }
+        else {
+          window.parent.postMessage(event, window.parent.origin);
+        }
+      }
       function onPlayerError(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerError', data: event.data}))
+        playerPostMessage(JSON.stringify({eventType: 'playerError', data: event.data}))
       }
-
       function onPlaybackRateChange(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playbackRateChange', data: event.data}))
+        playerPostMessage(JSON.stringify({eventType: 'playbackRateChange', data: event.data}))
       }
-
       function onPlaybackQualityChange(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
+        playerPostMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
       }
-
       function onPlayerReady(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerReady'}))
+        playerPostMessage(JSON.stringify({eventType: 'playerReady'}))
       }
-
       var done = false;
       function onPlayerStateChange(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerStateChange', data: event.data}))
+        playerPostMessage(JSON.stringify({eventType: 'playerStateChange', data: event.data}))
       }
-
       var isFullScreen = false;
       function onFullScreenChange() {
         isFullScreen = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'fullScreenChange', data: Boolean(isFullScreen)}));
+        playerPostMessage(JSON.stringify({eventType: 'fullScreenChange', data: Boolean(isFullScreen)}));
       }
-
       document.addEventListener('fullscreenchange', onFullScreenChange)
       document.addEventListener('mozfullscreenchange', onFullScreenChange)
       document.addEventListener('msfullscreenchange', onFullScreenChange)

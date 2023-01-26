@@ -7,6 +7,7 @@ import { useCallback } from 'react';
 import OverlayView from '../OverlayView';
 import { useState } from 'react';
 import { IAppYoutubeIframePropsProps } from './types';
+import AppYoutubeIframe from '../../../../components/AppYoutubeIframe/AppYoutubeIframe';
 
 const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => {
     const [isPause, setIsPause] = useState(false);
@@ -34,12 +35,14 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
 
     return (
         <View style={{ position: 'relative', width: props.width, height: props.height}}>
-            <YoutubePlayer
+            <AppYoutubeIframe
                 ref={ref}
                 {...props}
                 play={isPlaying}
                 onChangeState={onStateChange}
-                onFullScreenChange={onFullScreenChange}
+                initialPlayerParams={{
+                    preventFullScreen: true,
+                }}
             />
             <OverlayView 
                 visible={isPause} 

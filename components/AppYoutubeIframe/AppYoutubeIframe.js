@@ -13,7 +13,6 @@ import {WebView} from './WebView';
 import {
   PLAYER_ERROR,
   PLAYER_STATES,
-  DEFAULT_BASE_URL,
   CUSTOM_USER_AGENT,
 } from './constants';
 import {
@@ -24,7 +23,7 @@ import {
 } from './PlayerScripts';
 import {deepComparePlayList} from './utils';
 
-const YoutubeIframe = (props, ref) => {
+const AppYoutubeIframe = (props, ref) => {
   const {
     height,
     width,
@@ -122,13 +121,21 @@ const YoutubeIframe = (props, ref) => {
       // no instance of player is ready
       return;
     }
-
-    [
+    const playVideoScripts = [
       playMode[play],
       soundMode[mute],
       PLAYER_FUNCTIONS.setVolume(volume),
       PLAYER_FUNCTIONS.setPlaybackRate(playbackRate),
-    ].forEach(webViewRef.current.injectJavaScript);
+    ];
+    playVideoScripts.forEach(ele => {
+      if(Platform.OS === "web"){
+          webViewRef.current.frameRef.contentWindow.eval(ele);
+      }
+      else {
+          webViewRef.current.injectJavaScript(ele);
+      }
+    })
+
   }, [play, mute, volume, playbackRate, playerReady]);
 
   useEffect(() => {
@@ -164,11 +171,22 @@ const YoutubeIframe = (props, ref) => {
     );
   }, [playList, play, playListStartIndex, playerReady]);
 
+  const onWebViewMessage = useCallback((event) => {
+      console.log('on message receive: ', event);
+  }, [
+      onReady,
+      onError,
+      onChangeState,
+      onFullScreenChange,
+      onPlaybackRateChange,
+      onPlaybackQualityChange,
+  ]);
+
   const onWebMessage = useCallback(
     event => {
       try {
         const message = JSON.parse(event.nativeEvent.data);
-
+        console.log('on message receive: ', message);
         switch (message.eventType) {
           case 'fullScreenChange':
             onFullScreenChange(message.data);
@@ -213,7 +231,7 @@ const YoutubeIframe = (props, ref) => {
         const url = request.mainDocumentURL || request.url;
         const iosFirstLoad = Platform.OS === 'ios' && url === 'about:blank';
         const shouldLoad =
-          iosFirstLoad || url.startsWith(baseUrlOverride || DEFAULT_BASE_URL);
+          iosFirstLoad || url.startsWith(baseUrlOverride);
         return shouldLoad;
       } catch (error) {
         // defaults to true in case of error
@@ -233,18 +251,8 @@ const YoutubeIframe = (props, ref) => {
       contentScale,
     );
 
-    if (useLocalHTML) {
-      const res = {html: ytScript.htmlString};
-      if (baseUrlOverride) {
-        res.baseUrl = baseUrlOverride;
-      }
-      return res;
-    }
-
-    const base = baseUrlOverride || DEFAULT_BASE_URL;
-    const data = ytScript.urlEncodedJSON;
-
-    return {uri: base + '?data=' + data};
+    const res = {html: ytScript.htmlString};
+    return res;
   }, [useLocalHTML, contentScale, baseUrlOverride, allowWebViewZoom]);
 
   return (
@@ -283,4 +291,4 @@ const styles = StyleSheet.create({
   webView: {backgroundColor: 'transparent'},
 });
 
-export default forwardRef(YoutubeIframe);
+export default forwardRef(AppYoutubeIframe);
