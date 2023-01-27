@@ -14,6 +14,7 @@ import {
   PLAYER_ERROR,
   PLAYER_STATES,
   CUSTOM_USER_AGENT,
+  PLAYER_STATES_NAMES,
 } from './constants';
 import {
   playMode,
@@ -40,6 +41,7 @@ const AppYoutubeIframe = (props, ref) => {
     contentScale = 1.0,
     onError = _err => {},
     onReady = _event => {},
+    onPlayerPlayed = () => {},
     playListStartIndex = 0,
     initialPlayerParams,
     allowWebViewZoom = false,
@@ -51,6 +53,7 @@ const AppYoutubeIframe = (props, ref) => {
   } = props;
 
   const [playerReady, setPlayerReady] = useState(false);
+  const [playerPlayed, setPlayerPlayed] = useState(false);
   const lastVideoIdRef = useRef(videoId);
   const lastPlayListRef = useRef(playList);
   const initialPlayerParamsRef = useRef(initialPlayerParams || {});
@@ -62,37 +65,37 @@ const AppYoutubeIframe = (props, ref) => {
     ref,
     () => ({
       getVideoUrl: () => {
-        webViewRef.current.injectJavaScript(PLAYER_FUNCTIONS.getVideoUrlScript);
+        injectJavaScript(PLAYER_FUNCTIONS.getVideoUrlScript);
         return new Promise(resolve => {
           eventEmitter.current.once('getVideoUrl', resolve);
         });
       },
       getDuration: () => {
-        webViewRef.current.injectJavaScript(PLAYER_FUNCTIONS.durationScript);
+        injectJavaScript(PLAYER_FUNCTIONS.durationScript);
         return new Promise(resolve => {
           eventEmitter.current.once('getDuration', resolve);
         });
       },
       getCurrentTime: () => {
-        webViewRef.current.injectJavaScript(PLAYER_FUNCTIONS.currentTimeScript);
+        injectJavaScript(PLAYER_FUNCTIONS.currentTimeScript);
         return new Promise(resolve => {
           eventEmitter.current.once('getCurrentTime', resolve);
         });
       },
       isMuted: () => {
-        webViewRef.current.injectJavaScript(PLAYER_FUNCTIONS.isMutedScript);
+        injectJavaScript(PLAYER_FUNCTIONS.isMutedScript);
         return new Promise(resolve => {
           eventEmitter.current.once('isMuted', resolve);
         });
       },
       getVolume: () => {
-        webViewRef.current.injectJavaScript(PLAYER_FUNCTIONS.getVolumeScript);
+        injectJavaScript(PLAYER_FUNCTIONS.getVolumeScript);
         return new Promise(resolve => {
           eventEmitter.current.once('getVolume', resolve);
         });
       },
       getPlaybackRate: () => {
-        webViewRef.current.injectJavaScript(
+        injectJavaScript(
           PLAYER_FUNCTIONS.getPlaybackRateScript,
         );
         return new Promise(resolve => {
@@ -100,7 +103,7 @@ const AppYoutubeIframe = (props, ref) => {
         });
       },
       getAvailablePlaybackRates: () => {
-        webViewRef.current.injectJavaScript(
+        injectJavaScript(
           PLAYER_FUNCTIONS.getAvailablePlaybackRatesScript,
         );
         return new Promise(resolve => {
@@ -108,13 +111,28 @@ const AppYoutubeIframe = (props, ref) => {
         });
       },
       seekTo: (seconds, allowSeekAhead) => {
-        webViewRef.current.injectJavaScript(
+        injectJavaScript(
           PLAYER_FUNCTIONS.seekToScript(seconds, allowSeekAhead),
         );
+      },
+      pausePlayer: () => {
+        injectJavaScript(PLAYER_FUNCTIONS.pauseVideo);
+      },
+      playPlayer: () => {
+        injectJavaScript(PLAYER_FUNCTIONS.playVideo);
       },
     }),
     [],
   );
+
+  const injectJavaScript = (command) => {
+    if(Platform.OS === "web"){
+      webViewRef.current.frameRef.contentWindow.eval(command);
+    }
+    else {
+      webViewRef.current.injectJavaScript(command);
+    }
+  }
 
   useEffect(() => {
     if (!playerReady) {
@@ -128,12 +146,7 @@ const AppYoutubeIframe = (props, ref) => {
       PLAYER_FUNCTIONS.setPlaybackRate(playbackRate),
     ];
     playVideoScripts.forEach(ele => {
-      if(Platform.OS === "web"){
-          webViewRef.current.frameRef.contentWindow.eval(ele);
-      }
-      else {
-          webViewRef.current.injectJavaScript(ele);
-      }
+      injectJavaScript(ele);
     })
 
   }, [play, mute, volume, playbackRate, playerReady]);
@@ -147,7 +160,7 @@ const AppYoutubeIframe = (props, ref) => {
 
     lastVideoIdRef.current = videoId;
 
-    webViewRef.current.injectJavaScript(
+    injectJavaScript(
       PLAYER_FUNCTIONS.loadVideoById(videoId, play),
     );
   }, [videoId, play, playerReady]);
@@ -166,32 +179,27 @@ const AppYoutubeIframe = (props, ref) => {
 
     lastPlayListRef.current = playList;
 
-    webViewRef.current.injectJavaScript(
+    injectJavaScript(
       PLAYER_FUNCTIONS.loadPlaylist(playList, playListStartIndex, play),
     );
   }, [playList, play, playListStartIndex, playerReady]);
 
-  const onWebViewMessage = useCallback((event) => {
-      console.log('on message receive: ', event);
-  }, [
-      onReady,
-      onError,
-      onChangeState,
-      onFullScreenChange,
-      onPlaybackRateChange,
-      onPlaybackQualityChange,
-  ]);
-
   const onWebMessage = useCallback(
     event => {
       try {
-        const message = JSON.parse(event.nativeEvent.data);
-        console.log('on message receive: ', message);
+        const message = JSON.parse(event.nativeEvent?.data || '');
+        if(!message.eventType){
+          return;
+        }
         switch (message.eventType) {
           case 'fullScreenChange':
             onFullScreenChange(message.data);
             break;
           case 'playerStateChange':
+            if(!playerPlayed && PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING){
+              setPlayerPlayed(true);
+              onPlayerPlayed?.();
+            }
             onChangeState(PLAYER_STATES[message.data]);
             break;
           case 'playerReady':

@@ -3,15 +3,20 @@ import { Button, View, Image, StyleSheet, TouchableOpacity } from "react-native"
 import { IOverlayProps } from "./types";
 
 const OverlayView = (props: IOverlayProps) => {
-  if (!props.visible) {
+  
+  if (!props.isPause && props.isPlayed) {
     return <></>;
   }
   return (
     <TouchableOpacity style={styles.container} onPress={props.onPress} activeOpacity={1}>
-      <Image style={styles.bgImage} source={props.imageSource} />
-      <View style={[styles.container, styles.centerItems]}>
-        <Image style={styles.btnImage} source={props.btnSource} />
-      </View>
+      {(props.isPause) && (
+        <>
+          <Image style={styles.bgImage} source={props.imageSource} />
+          <View style={[styles.container, styles.centerItems]}>
+            <Image style={styles.btnImage} source={props.btnSource} />
+          </View>
+        </>
+      )}
     </TouchableOpacity>
   );
 };

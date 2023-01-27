@@ -4,6 +4,7 @@ import type { ViewProps, ButtonProps } from 'react-native';
 export interface IOverlayProps extends ViewProps  {
     imageSource?: ImageSourcePropType,
     btnSource?: ImageSourcePropType,
-    visible?: boolean,
+    isPause: boolean,
+    isPlayed: boolean,
     onPress?: (() => void),
 }
