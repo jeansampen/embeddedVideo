@@ -79,12 +79,12 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
                 forceAndroidAutoplay={true}
                 webViewStyle={{display: isPlayerReady ? 'flex' : 'none'}}
             />
-            {isPlayerReady && <OverlayView 
+            {/* {isPlayerReady && <OverlayView 
                 isPause={isPause || false}
                 isPlayed={isPlayed}
                 onPress={onToggleVideo}
                 imageSource={props.pausingBgSource}
-                btnSource={props.pausingIconSource} />}
+                btnSource={props.pausingIconSource} />} */}
         </View>
     );
 };
