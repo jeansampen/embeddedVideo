@@ -176,7 +176,7 @@ export const MAIN_SCRIPT = (
     </style>
   </head>
   <body>
-    <div class="container">
+    <div id="player-container" class="container">
       <div class="video" id="player" />
     </div>
     <script>
@@ -235,7 +235,17 @@ export const MAIN_SCRIPT = (
         playerPostMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
       }
       function onPlayerReady(event) {
+        initActionContainer();
         playerPostMessage(JSON.stringify({eventType: 'playerReady'}))
+      }
+      var container = null;
+      function initActionContainer() {
+        playerView = document.getElementById('player-container');
+        console.log('set on click listener');
+        playerView.addEventListener("mouseup",onMouseClick);
+      }
+      function onMouseClick(event){
+        playerPostMessage(JSON.stringify({eventType: 'onPlayerClick', data: event.data}))
       }
       var done = false;
       function onPlayerStateChange(event) {

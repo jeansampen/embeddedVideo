@@ -6,23 +6,25 @@ import React, {
   forwardRef,
   useCallback,
   useImperativeHandle,
-} from 'react';
-import {Platform, StyleSheet, View} from 'react-native';
-import {EventEmitter} from 'events';
-import {WebView} from './WebView';
+} from "react";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import { EventEmitter } from "events";
+import { WebView } from "./WebView";
 import {
   PLAYER_ERROR,
   PLAYER_STATES,
   CUSTOM_USER_AGENT,
   PLAYER_STATES_NAMES,
-} from './constants';
+} from "./constants";
 import {
   playMode,
   soundMode,
   MAIN_SCRIPT,
   PLAYER_FUNCTIONS,
-} from './PlayerScripts';
-import {deepComparePlayList} from './utils';
+} from "./PlayerScripts";
+import { deepComparePlayList } from "./utils";
+import { useHover, useFocus, useActive } from "react-native-web-hooks";
+import PlayerOverlayView from "./PlayerOverlayView";
 
 const AppYoutubeIframe = (props, ref) => {
   const {
@@ -39,24 +41,26 @@ const AppYoutubeIframe = (props, ref) => {
     baseUrlOverride,
     playbackRate = 1,
     contentScale = 1.0,
-    onError = _err => {},
-    onReady = _event => {},
+    onError = (_err) => {},
+    onReady = (_event) => {},
     onPlayerPlayed = () => {},
     playListStartIndex = 0,
     initialPlayerParams,
     allowWebViewZoom = false,
     forceAndroidAutoplay = false,
-    onChangeState = _event => {},
-    onFullScreenChange = _status => {},
-    onPlaybackQualityChange = _quality => {},
-    onPlaybackRateChange = _playbackRate => {},
+    onChangeState = (_event) => {},
+    onFullScreenChange = (_status) => {},
+    onPlaybackQualityChange = (_quality) => {},
+    onPlaybackRateChange = (_playbackRate) => {},
   } = props;
 
   const [playerReady, setPlayerReady] = useState(false);
   const [playerPlayed, setPlayerPlayed] = useState(false);
+  const [playerOverlayVisible, setplayerOverlayVisible] = useState(false);
   const lastVideoIdRef = useRef(videoId);
   const lastPlayListRef = useRef(playList);
   const initialPlayerParamsRef = useRef(initialPlayerParams || {});
+  const overlayRef = useRef(null);
 
   const webViewRef = useRef(null);
   const eventEmitter = useRef(new EventEmitter());
@@ -66,53 +70,49 @@ const AppYoutubeIframe = (props, ref) => {
     () => ({
       getVideoUrl: () => {
         injectJavaScript(PLAYER_FUNCTIONS.getVideoUrlScript);
-        return new Promise(resolve => {
-          eventEmitter.current.once('getVideoUrl', resolve);
+        return new Promise((resolve) => {
+          eventEmitter.current.once("getVideoUrl", resolve);
         });
       },
       getDuration: () => {
         injectJavaScript(PLAYER_FUNCTIONS.durationScript);
-        return new Promise(resolve => {
-          eventEmitter.current.once('getDuration', resolve);
+        return new Promise((resolve) => {
+          eventEmitter.current.once("getDuration", resolve);
         });
       },
       getCurrentTime: () => {
         injectJavaScript(PLAYER_FUNCTIONS.currentTimeScript);
-        return new Promise(resolve => {
-          eventEmitter.current.once('getCurrentTime', resolve);
+        return new Promise((resolve) => {
+          eventEmitter.current.once("getCurrentTime", resolve);
         });
       },
       isMuted: () => {
         injectJavaScript(PLAYER_FUNCTIONS.isMutedScript);
-        return new Promise(resolve => {
-          eventEmitter.current.once('isMuted', resolve);
+        return new Promise((resolve) => {
+          eventEmitter.current.once("isMuted", resolve);
         });
       },
       getVolume: () => {
         injectJavaScript(PLAYER_FUNCTIONS.getVolumeScript);
-        return new Promise(resolve => {
-          eventEmitter.current.once('getVolume', resolve);
+        return new Promise((resolve) => {
+          eventEmitter.current.once("getVolume", resolve);
         });
       },
       getPlaybackRate: () => {
-        injectJavaScript(
-          PLAYER_FUNCTIONS.getPlaybackRateScript,
-        );
-        return new Promise(resolve => {
-          eventEmitter.current.once('getPlaybackRate', resolve);
+        injectJavaScript(PLAYER_FUNCTIONS.getPlaybackRateScript);
+        return new Promise((resolve) => {
+          eventEmitter.current.once("getPlaybackRate", resolve);
         });
       },
       getAvailablePlaybackRates: () => {
-        injectJavaScript(
-          PLAYER_FUNCTIONS.getAvailablePlaybackRatesScript,
-        );
-        return new Promise(resolve => {
-          eventEmitter.current.once('getAvailablePlaybackRates', resolve);
+        injectJavaScript(PLAYER_FUNCTIONS.getAvailablePlaybackRatesScript);
+        return new Promise((resolve) => {
+          eventEmitter.current.once("getAvailablePlaybackRates", resolve);
         });
       },
       seekTo: (seconds, allowSeekAhead) => {
         injectJavaScript(
-          PLAYER_FUNCTIONS.seekToScript(seconds, allowSeekAhead),
+          PLAYER_FUNCTIONS.seekToScript(seconds, allowSeekAhead)
         );
       },
       pausePlayer: () => {
@@ -122,17 +122,16 @@ const AppYoutubeIframe = (props, ref) => {
         injectJavaScript(PLAYER_FUNCTIONS.playVideo);
       },
     }),
-    [],
+    []
   );
 
   const injectJavaScript = (command) => {
-    if(Platform.OS === "web"){
+    if (Platform.OS === "web") {
       webViewRef.current.frameRef.contentWindow.eval(command);
-    }
-    else {
+    } else {
       webViewRef.current.injectJavaScript(command);
     }
-  }
+  };
 
   useEffect(() => {
     if (!playerReady) {
@@ -145,10 +144,9 @@ const AppYoutubeIframe = (props, ref) => {
       PLAYER_FUNCTIONS.setVolume(volume),
       PLAYER_FUNCTIONS.setPlaybackRate(playbackRate),
     ];
-    playVideoScripts.forEach(ele => {
+    playVideoScripts.forEach((ele) => {
       injectJavaScript(ele);
-    })
-
+    });
   }, [play, mute, volume, playbackRate, playerReady]);
 
   useEffect(() => {
@@ -160,9 +158,7 @@ const AppYoutubeIframe = (props, ref) => {
 
     lastVideoIdRef.current = videoId;
 
-    injectJavaScript(
-      PLAYER_FUNCTIONS.loadVideoById(videoId, play),
-    );
+    injectJavaScript(PLAYER_FUNCTIONS.loadVideoById(videoId, play));
   }, [videoId, play, playerReady]);
 
   useEffect(() => {
@@ -180,39 +176,43 @@ const AppYoutubeIframe = (props, ref) => {
     lastPlayListRef.current = playList;
 
     injectJavaScript(
-      PLAYER_FUNCTIONS.loadPlaylist(playList, playListStartIndex, play),
+      PLAYER_FUNCTIONS.loadPlaylist(playList, playListStartIndex, play)
     );
   }, [playList, play, playListStartIndex, playerReady]);
 
   const onWebMessage = useCallback(
-    event => {
+    (event) => {
       try {
-        const message = JSON.parse(event.nativeEvent?.data || '');
-        if(!message.eventType){
+        const message = JSON.parse(event.nativeEvent?.data || "");
+        console.log('onWebMessage: ', message);
+        if (!message.eventType) {
           return;
         }
         switch (message.eventType) {
-          case 'fullScreenChange':
+          case "fullScreenChange":
             onFullScreenChange(message.data);
             break;
-          case 'playerStateChange':
-            if(!playerPlayed && PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING){
+          case "playerStateChange":
+            if (
+              !playerPlayed &&
+              PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING
+            ) {
               setPlayerPlayed(true);
               onPlayerPlayed?.();
             }
             onChangeState(PLAYER_STATES[message.data]);
             break;
-          case 'playerReady':
+          case "playerReady":
             onReady();
             setPlayerReady(true);
             break;
-          case 'playerQualityChange':
+          case "playerQualityChange":
             onPlaybackQualityChange(message.data);
             break;
-          case 'playerError':
+          case "playerError":
             onError(PLAYER_ERROR[message.data]);
             break;
-          case 'playbackRateChange':
+          case "playbackRateChange":
             onPlaybackRateChange(message.data);
             break;
           default:
@@ -220,7 +220,7 @@ const AppYoutubeIframe = (props, ref) => {
             break;
         }
       } catch (error) {
-        console.warn('[rn-youtube-iframe]', error);
+        console.warn("[rn-youtube-iframe]", error);
       }
     },
     [
@@ -230,16 +230,15 @@ const AppYoutubeIframe = (props, ref) => {
       onFullScreenChange,
       onPlaybackRateChange,
       onPlaybackQualityChange,
-    ],
+    ]
   );
 
   const onShouldStartLoadWithRequest = useCallback(
-    request => {
+    (request) => {
       try {
         const url = request.mainDocumentURL || request.url;
-        const iosFirstLoad = Platform.OS === 'ios' && url === 'about:blank';
-        const shouldLoad =
-          iosFirstLoad || url.startsWith(baseUrlOverride);
+        const iosFirstLoad = Platform.OS === "ios" && url === "about:blank";
+        const shouldLoad = iosFirstLoad || url.startsWith(baseUrlOverride);
         return shouldLoad;
       } catch (error) {
         // defaults to true in case of error
@@ -247,7 +246,7 @@ const AppYoutubeIframe = (props, ref) => {
         return true;
       }
     },
-    [baseUrlOverride],
+    [baseUrlOverride]
   );
 
   const source = useMemo(() => {
@@ -256,18 +255,56 @@ const AppYoutubeIframe = (props, ref) => {
       lastPlayListRef.current,
       initialPlayerParamsRef.current,
       allowWebViewZoom,
-      contentScale,
+      contentScale
     );
 
-    const res = {html: ytScript.htmlString};
+    const res = { html: ytScript.htmlString };
     return res;
   }, [useLocalHTML, contentScale, baseUrlOverride, allowWebViewZoom]);
 
+  const onHideOverlay = () => {
+    setplayerOverlayVisible(false);
+  };
+
+  const checkCustomControlInterval = useRef(null);
+
+  const onHiddenTouchOverlayPress = () => {
+    if(!playerOverlayVisible){
+      setplayerOverlayVisible(true);
+      if(!checkCustomControlInterval.current){
+        checkCustomControlInterval.current = setInterval(() => {
+          setplayerOverlayVisible(false);
+          clearInterval(checkCustomControlInterval.current);
+          checkCustomControlInterval.current = null;
+        }, 3000);
+      }
+    }
+  }
+
+  if(Platform.OS === "web"){
+    const isHoveredPlayer = useHover(webViewRef);
+    const checkHoverInterval = useRef(null);
+
+    useEffect(() => {
+      if(isHoveredPlayer && !playerOverlayVisible){
+        setplayerOverlayVisible(true);
+        checkHoverInterval.current = setInterval(() => {
+          setplayerOverlayVisible(false);
+          clearInterval(checkHoverInterval.current);
+          checkHoverInterval.current = null;
+        }, 3000);
+      }
+    }, [isHoveredPlayer]);
+  }
+  
+
   return (
-    <View style={{height, width}}>
+    <View
+      style={{ height, width }}
+    >
       <WebView
         bounces={false}
-        originWhitelist={['*']}
+        originWhitelist={["*"]}
         allowsInlineMediaPlayback
         style={[styles.webView, webViewStyle]}
         mediaPlaybackRequiresUserAction={false}
@@ -277,8 +314,8 @@ const AppYoutubeIframe = (props, ref) => {
         }
         userAgent={
           forceAndroidAutoplay
-            ? Platform.select({android: CUSTOM_USER_AGENT, ios: ''})
-            : ''
+            ? Platform.select({ android: CUSTOM_USER_AGENT, ios: "" })
+            : ""
         }
         // props above this are override-able
 
@@ -291,12 +328,36 @@ const AppYoutubeIframe = (props, ref) => {
         ref={webViewRef}
         onMessage={onWebMessage}
       />
+      {playerOverlayVisible && <View style={[styles.overlay, {top: height/2 - 25, left: width/2 - 25}]}>
+        <PlayerOverlayView visible={playerOverlayVisible} ref={overlayRef} />
+      </View>}
+      {!playerOverlayVisible && (Platform.OS === 'android' || Platform.OS === 'ios') && 
+      <TouchableOpacity onPress={onHiddenTouchOverlayPress} style={styles.hiddenTouchOverlay}>
+
+      </TouchableOpacity>}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  webView: {backgroundColor: 'transparent'},
+  webView: { backgroundColor: "transparent", width: '100%', height: '100%' },
+  overlay: {
+    position: "absolute",
+    margin: 'auto',
+    zIndex: 1,
+    backgroundColor: '#ffffff',
+    width: 50, 
+    height: 50,
+    borderRadius: 10,
+  },
+  hiddenTouchOverlay: {
+    position: "absolute",
+    margin: 'auto',
+    left: 0, 
+    top: 0,
+    right: 0,
+    bottom: 0,
+  }
 });
 
 export default forwardRef(AppYoutubeIframe);
