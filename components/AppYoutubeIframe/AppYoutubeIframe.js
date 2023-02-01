@@ -41,6 +41,7 @@ const AppYoutubeIframe = (props, ref) => {
     baseUrlOverride,
     playbackRate = 1,
     contentScale = 1.0,
+    onUpdateVisibilityPauseOverlay = (visible) => {},
     onError = (_err) => {},
     onReady = (_event) => {},
     onPlayerPlayed = () => {},
@@ -64,6 +65,13 @@ const AppYoutubeIframe = (props, ref) => {
 
   const webViewRef = useRef(null);
   const eventEmitter = useRef(new EventEmitter());
+
+  const isStartTouchRef = useRef(false);
+  const isMoveTouchRef = useRef(false);
+  const isEndTouchRef = useRef(false);
+  const timeStartMoveRef = useRef(0);
+  const currentTimeOutDurationRef = useRef(0);
+  const timeoutRef = useRef(null);
 
   useImperativeHandle(
     ref,
@@ -204,11 +212,31 @@ const AppYoutubeIframe = (props, ref) => {
               showPlayerOverlay(3000);
               isFirstTimePlay.current = true;
             }
+            if(PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING){
+              onUpdateVisibilityPauseOverlay?.(false);
+            }
+            else if(PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PAUSED){
+              if(isMoveTouchRef.current){
+                onUpdateVisibilityPauseOverlay?.(false);
+              }
+              else { 
+                onUpdateVisibilityPauseOverlay?.(true);
+              }
+            }
+            else if(PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.ENDED){
+              injectJavaScript(PLAYER_FUNCTIONS.pauseVideo);
+              injectJavaScript(
+                PLAYER_FUNCTIONS.seekToScript(0, true)
+              );
+              isFirstTimePlay.current = false;
+              onUpdateVisibilityPauseOverlay?.(true);
+            }
             onChangeState(PLAYER_STATES[message.data]);
             break;
           case "playerReady":
             onReady();
             setPlayerReady(true);
+            onUpdateVisibilityPauseOverlay?.(true);
             break;
           case "playerQualityChange":
             onPlaybackQualityChange(message.data);
@@ -284,10 +312,13 @@ const AppYoutubeIframe = (props, ref) => {
 
   const showPlayerOverlay = (timeout) => {
     const timeoutDefault = Platform.OS === "android" ? 3250 : 4250;
+    currentTimeOutDurationRef.current = timeout || timeoutDefault;
     setplayerOverlayVisible(true);
-    setTimeout(() => {
-      setplayerOverlayVisible(false);
-    }, timeout || timeoutDefault);
+    timeoutRef.current = setTimeout(() => {
+      if(!isMoveTouchRef.current){
+        setplayerOverlayVisible(false);
+      }
+    }, currentTimeOutDurationRef.current);
   }
 
   const onPlayerTap = (evt) => {
@@ -297,18 +328,64 @@ const AppYoutubeIframe = (props, ref) => {
       }
     }
   }
+
+  const onTouchStart = (eve) => {
+    console.log('onTouchStart');
+    eve.preventDefault();
+    timeStartMoveRef.current = Date.now();
+    isStartTouchRef.current = true;
+    isMoveTouchRef.current = false;
+    isEndTouchRef.current = false;
+  }
+
+  const onTouchMove = (eve) => {
+    console.log('onTouchMove');
+    eve.preventDefault();
+    isStartTouchRef.current = false;
+    isMoveTouchRef.current = true;
+    isEndTouchRef.current = false;
+  }
+
+  const onTouchEnd = (eve) => {
+    console.log('onTouchEnd');
+    eve.preventDefault();
+    isStartTouchRef.current = false;
+    isMoveTouchRef.current = false;
+    isEndTouchRef.current = true;
+
+    if(playerOverlayVisible){
+      const durationMoveSec = (Date.now() - timeStartMoveRef.current);
+      if(durationMoveSec > currentTimeOutDurationRef.current){
+        setplayerOverlayVisible(false);
+      }
+      else {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+          setplayerOverlayVisible(false);
+        }, currentTimeOutDurationRef.current - durationMoveSec);
+      }
+      
+    }
+    else {
+      onPlayerTap();
+    }
+    timeStartMoveRef.current = 0;
+    
+  }
   
 
   return (
     <View
-      style={{ height, width, backgroundColor: 'red' }}
-      onStartShouldSetResponderCapture={(evt) => {console.log('onStartShouldSetResponderCapture: ', evt.nativeEvent); return false;}}
-      onMoveShouldSetResponderCapture={(evt) => {console.log('onMoveShouldSetResponderCapture: ', evt.nativeEvent); return true;}}
-      onResponderRelease={(evt) => {console.log('onResponderRelease: ', evt.nativeEvent); return false;}}
+      style={{ height, width}}
+      onStartShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onStartShouldSetResponderCapture'); return true; }}
+      onMoveShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onMoveShouldSetResponderCapture'); return false; }}
+      onResponderGrant={onTouchStart}
+      onResponderMove={onTouchMove}
+      onResponderReject={onTouchEnd}
+      onResponderRelease={onTouchEnd}
       >
-    <TouchableNativeFeedback 
-      style={{width: 100, height: 100}} 
-      onPress={onPlayerTap}>
+    <View
+      style={{width: '100%', height: '100%'}}>
         
       <WebView
           bounces={false}
@@ -336,7 +413,7 @@ const AppYoutubeIframe = (props, ref) => {
           ref={webViewRef}
           onMessage={onWebMessage}
         />
-        </TouchableNativeFeedback>
+        </View>
       {playerOverlayVisible && <View style={[styles.overlay, {top: height/2 - 25, left: width/2 - 25}]}>
         <PlayerOverlayView visible={playerOverlayVisible} ref={overlayRef} />
       </View>}

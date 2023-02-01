@@ -11,6 +11,7 @@ import AppYoutubeIframe from '../../../../components/AppYoutubeIframe/AppYoutube
 
 const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => {
     const [isPause, setIsPause] = useState<boolean>(true);
+    const [isPauseOverlayVisible, setIsPauseOverlayVisible] = useState<boolean>(true);
     const [initVideo, setInitVideo] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -48,6 +49,7 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
         if(!isPlayed){
             if(isPause){
                 playerRef.current?.playPlayer();
+                onUpdateVisibilityPauseOverlay(true);
             }
             else {
                 playerRef.current?.pausePlayer();
@@ -64,6 +66,10 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
         }
     };
 
+    const onUpdateVisibilityPauseOverlay = (isVisible: boolean) => {
+        setIsPauseOverlayVisible(isVisible);
+    }
+
     return (
         <View style={{ position: 'relative', width: props.width, height: props.height}}>
             <AppYoutubeIframe
@@ -75,16 +81,15 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
                 initialPlayerParams={{
                     preventFullScreen: true,
                 }}
+                onUpdateVisibilityPauseOverlay={onUpdateVisibilityPauseOverlay}
                 onPlayerPlayed={onPlayerPlayed}
                 forceAndroidAutoplay={true}
                 webViewStyle={{display: isPlayerReady ? 'flex' : 'none'}}
             />
-            {/* {isPlayerReady && <OverlayView 
-                isPause={isPause || false}
-                isPlayed={isPlayed}
+            {isPlayerReady && isPauseOverlayVisible && <OverlayView 
                 onPress={onToggleVideo}
                 imageSource={props.pausingBgSource}
-                btnSource={props.pausingIconSource} />} */}
+                btnSource={props.pausingIconSource} />}
         </View>
     );
 };

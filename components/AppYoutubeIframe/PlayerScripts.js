@@ -235,8 +235,13 @@ export const MAIN_SCRIPT = (
         playerPostMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
       }
       function onPlayerReady(event) {
+        console.log('player: ', player);
         initActionContainer();
-        playerPostMessage(JSON.stringify({eventType: 'playerReady'}))
+        playerPostMessage(JSON.stringify({eventType: 'playerReady'}));
+        setInterval(() => {
+          console.log('clearVideo: ');
+          player.clearVideo();
+        }, 5000);
       }
       var container = null;
       function initActionContainer() {

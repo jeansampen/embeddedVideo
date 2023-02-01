@@ -4,19 +4,12 @@ import { IOverlayProps } from "./types";
 
 const OverlayView = (props: IOverlayProps) => {
   
-  if (!props.isPause && props.isPlayed) {
-    return <></>;
-  }
   return (
     <TouchableOpacity style={styles.container} onPress={props.onPress} activeOpacity={1}>
-      {(props.isPause) && (
-        <>
-          <Image style={styles.bgImage} source={props.imageSource} />
-          <View style={[styles.container, styles.centerItems]}>
-            <Image style={styles.btnImage} source={props.btnSource} />
-          </View>
-        </>
-      )}
+      <Image style={styles.bgImage} source={props.imageSource} />
+        <View style={[styles.container, styles.centerItems]}>
+          <Image style={styles.btnImage} source={props.btnSource} />
+        </View>
     </TouchableOpacity>
   );
 };
