@@ -25,6 +25,17 @@ import {
 import { deepComparePlayList } from "./utils";
 import { useHover, useFocus, useActive } from "react-native-web-hooks";
 import PlayerOverlayView from "./PlayerOverlayView";
+import * as TV from 'expo-handle-touch-view';
+
+let CustomWebView;
+
+try {
+  CustomWebView = require('expo-handle-touch-view').HandleTouchView;
+} catch {
+  console.log('has no custom webview');
+  CustomWebView = View;
+}
+
 
 const AppYoutubeIframe = (props, ref) => {
   const {
@@ -194,8 +205,9 @@ const AppYoutubeIframe = (props, ref) => {
   const onWebMessage = useCallback(
     (event) => {
       try {
+        console.log('onWebMessage: ', event.nativeEvent);
         const message = JSON.parse(event.nativeEvent?.data || "");
-        console.log('onWebMessage: ', message);
+        
         if (!message.eventType) {
           return;
         }
@@ -377,13 +389,16 @@ const AppYoutubeIframe = (props, ref) => {
   return (
     <View
       style={{ height, width}}
-      onStartShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onStartShouldSetResponderCapture'); return true; }}
-      onMoveShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onMoveShouldSetResponderCapture'); return false; }}
-      onResponderGrant={onTouchStart}
-      onResponderMove={onTouchMove}
-      onResponderReject={onTouchEnd}
-      onResponderRelease={onTouchEnd}
+      // onStartShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onStartShouldSetResponderCapture'); return false; }}
+      // onMoveShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onMoveShouldSetResponderCapture'); return true; }}
+      // onShouldBlockNativeResponder={(evt) => { evt.preventDefault(); console.log('onShouldBlockNativeResponder'); return false; }}
+      // onStartShouldSetPanResponderCapture={(evt) => { evt.preventDefault(); console.log('onStartShouldSetPanResponderCapture'); return false; }}
+      // onResponderGrant={onTouchStart}
+      // onResponderMove={onTouchMove}
+      // onResponderReject={onTouchEnd}
+      // onResponderRelease={onTouchEnd}
       >
+    <CustomWebView />  
     <View
       style={{width: '100%', height: '100%'}}>
         

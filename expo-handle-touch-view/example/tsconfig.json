@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "expo-handle-touch-view": ["../src/index"],
+      "expo-handle-touch-view/*": ["../src/*"]
+    }
+  }
+}
