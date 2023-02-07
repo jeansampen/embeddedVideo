@@ -28,7 +28,7 @@
   "private": true,
   "expo": {
     "autolinking": {
-      "nativeModulesDir": ".."
+      "nativeModulesDir": "../../expo-handle-touch-view"
     }
   }
 }

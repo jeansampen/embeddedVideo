@@ -25,17 +25,15 @@ import {
 import { deepComparePlayList } from "./utils";
 import { useHover, useFocus, useActive } from "react-native-web-hooks";
 import PlayerOverlayView from "./PlayerOverlayView";
-import * as TV from 'expo-handle-touch-view';
 
-let CustomWebView;
+let HandleTouchView;
 
 try {
-  CustomWebView = require('expo-handle-touch-view').HandleTouchView;
-} catch {
-  console.log('has no custom webview');
-  CustomWebView = View;
+  HandleTouchView = require("expo-handle-touch-view").HandleTouchView;
 }
-
+catch {
+  HandleTouchView = View;
+}
 
 const AppYoutubeIframe = (props, ref) => {
   const {
@@ -221,7 +219,7 @@ const AppYoutubeIframe = (props, ref) => {
               PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING
             ) {
               onPlayerPlayed?.();
-              showPlayerOverlay(3000);
+              showPlayerOverlay(2750);
               isFirstTimePlay.current = true;
             }
             if(PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING){
@@ -348,6 +346,9 @@ const AppYoutubeIframe = (props, ref) => {
     isStartTouchRef.current = true;
     isMoveTouchRef.current = false;
     isEndTouchRef.current = false;
+    if(!playerOverlayVisible){
+      onPlayerTap();
+    }
   }
 
   const onTouchMove = (eve) => {
@@ -356,6 +357,10 @@ const AppYoutubeIframe = (props, ref) => {
     isStartTouchRef.current = false;
     isMoveTouchRef.current = true;
     isEndTouchRef.current = false;
+    if(playerOverlayVisible && timeoutRef.current){
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   }
 
   const onTouchEnd = (eve) => {
@@ -371,15 +376,14 @@ const AppYoutubeIframe = (props, ref) => {
         setplayerOverlayVisible(false);
       }
       else {
-        clearTimeout(timeoutRef.current);
+        if(timeoutRef.current){
+          clearTimeout(timeoutRef.current);
+        }
         timeoutRef.current = setTimeout(() => {
           setplayerOverlayVisible(false);
         }, currentTimeOutDurationRef.current - durationMoveSec);
       }
       
-    }
-    else {
-      onPlayerTap();
     }
     timeStartMoveRef.current = 0;
     
@@ -389,17 +393,27 @@ const AppYoutubeIframe = (props, ref) => {
   return (
     <View
       style={{ height, width}}
-      // onStartShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onStartShouldSetResponderCapture'); return false; }}
-      // onMoveShouldSetResponderCapture={(evt) => { evt.preventDefault(); console.log('onMoveShouldSetResponderCapture'); return true; }}
-      // onShouldBlockNativeResponder={(evt) => { evt.preventDefault(); console.log('onShouldBlockNativeResponder'); return false; }}
-      // onStartShouldSetPanResponderCapture={(evt) => { evt.preventDefault(); console.log('onStartShouldSetPanResponderCapture'); return false; }}
-      // onResponderGrant={onTouchStart}
-      // onResponderMove={onTouchMove}
-      // onResponderReject={onTouchEnd}
-      // onResponderRelease={onTouchEnd}
+      onStartShouldSetResponderCapture={Platform.OS === 'ios' ? (evt) => { evt.preventDefault(); console.log('onStartShouldSetResponderCapture'); return true; } : undefined}
+      onResponderGrant={Platform.OS === 'ios' ? onTouchStart : undefined}
+      onResponderMove={Platform.OS === 'ios' ? onTouchMove : undefined}
+      onResponderRelease={Platform.OS === 'ios' ? onTouchEnd : undefined}
       >
-    <CustomWebView />  
-    <View
+    <HandleTouchView
+      onTouch={Platform.OS === 'android' ? (evt) => {
+        console.log('on touch: ' + evt.nativeEvent.type);
+        // 0 is start touch
+        if(evt.nativeEvent.type == "0") {
+          onTouchStart(evt);
+        }
+        // 1 is end touch
+        else if(evt.nativeEvent.type == "1") {
+          onTouchEnd(evt);
+        }
+        // 2 is move touch
+        else if(evt.nativeEvent.type == "2") {
+          onTouchMove(evt);
+        }
+      } : undefined}
       style={{width: '100%', height: '100%'}}>
         
       <WebView
@@ -428,7 +442,7 @@ const AppYoutubeIframe = (props, ref) => {
           ref={webViewRef}
           onMessage={onWebMessage}
         />
-        </View>
+        </HandleTouchView>
       {playerOverlayVisible && <View style={[styles.overlay, {top: height/2 - 25, left: width/2 - 25}]}>
         <PlayerOverlayView visible={playerOverlayVisible} ref={overlayRef} />
       </View>}

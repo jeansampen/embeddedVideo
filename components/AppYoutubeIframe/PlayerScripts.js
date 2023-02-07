@@ -235,7 +235,7 @@ export const MAIN_SCRIPT = (
         playerPostMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
       }
       function onPlayerReady(event) {
-        initActionContainer();
+        // initActionContainer();
         playerPostMessage(JSON.stringify({eventType: 'playerReady'}));
       }
       var container = null;
