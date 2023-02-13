@@ -147,9 +147,9 @@ const AppYoutubeIframe = (props, ref) => {
 
   const injectJavaScript = (command) => {
     if (Platform.OS === "web") {
-      webViewRef.current.frameRef.contentWindow.eval(command);
+      webViewRef?.current?.frameRef.contentWindow.eval(command);
     } else {
-      webViewRef.current.injectJavaScript(command);
+      webViewRef?.current?.injectJavaScript(command);
     }
   };
 
@@ -203,7 +203,7 @@ const AppYoutubeIframe = (props, ref) => {
   const onWebMessage = useCallback(
     (event) => {
       try {
-        console.log('onWebMessage: ', event.nativeEvent);
+        // console.log('onWebMessage: ', event.nativeEvent);
         const message = JSON.parse(event.nativeEvent?.data || "");
         
         if (!message.eventType) {
@@ -388,7 +388,6 @@ const AppYoutubeIframe = (props, ref) => {
     timeStartMoveRef.current = 0;
     
   }
-  
 
   return (
     <View
@@ -397,6 +396,9 @@ const AppYoutubeIframe = (props, ref) => {
       onResponderGrant={Platform.OS === 'ios' ? onTouchStart : undefined}
       onResponderMove={Platform.OS === 'ios' ? onTouchMove : undefined}
       onResponderRelease={Platform.OS === 'ios' ? onTouchEnd : undefined}
+      onPressIn={evt => {console.log('on press in: ', evt)}} 
+      onTouchMove={evt => {console.log('on touch move: ', evt)}} 
+      onPressOut={evt => {console.log('on press out: ', evt)}}
       >
     <HandleTouchView
       onTouch={Platform.OS === 'android' ? (evt) => {
@@ -415,7 +417,6 @@ const AppYoutubeIframe = (props, ref) => {
         }
       } : undefined}
       style={{width: '100%', height: '100%'}}>
-        
       <WebView
           bounces={false}
           originWhitelist={["*"]}
@@ -442,7 +443,7 @@ const AppYoutubeIframe = (props, ref) => {
           ref={webViewRef}
           onMessage={onWebMessage}
         />
-        </HandleTouchView>
+      </HandleTouchView>
       {playerOverlayVisible && <View style={[styles.overlay, {top: height/2 - 25, left: width/2 - 25}]}>
         <PlayerOverlayView visible={playerOverlayVisible} ref={overlayRef} />
       </View>}

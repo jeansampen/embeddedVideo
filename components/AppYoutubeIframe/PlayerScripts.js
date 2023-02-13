@@ -65,6 +65,10 @@ true;
 
     return `player.${func}({videoId: ${JSON.stringify(videoId)}}); true;`;
   },
+
+  initWebOverlay: () => {
+    return `initActionContainer(); true`;
+  }
 };
 
 export const playMode = {
@@ -173,6 +177,13 @@ export const MAIN_SCRIPT = (
           width: 100%;
           height: 100%;
       }
+      .shadow-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
     </style>
   </head>
   <body>
@@ -201,12 +212,15 @@ export const MAIN_SCRIPT = (
             color: ${color},
             start: ${start},
             hl: ${playerLang},
-            controls: ${controls_s},
+            controls: 4,
             fs: ${preventFullScreen_s},
             cc_lang_pref: '${cc_lang_pref_s}',
             iv_load_policy: ${iv_load_policy},
             modestbranding: ${modestbranding_s},
-            cc_load_policy: ${showClosedCaptions_s},
+            // cc_load_policy: ${showClosedCaptions_s},
+            cc_load_policy: 0,
+            disablekb: 0,
+            enablejsapi: 1,
           },
           events: {
             'onReady': onPlayerReady,
@@ -235,29 +249,55 @@ export const MAIN_SCRIPT = (
         playerPostMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
       }
       function onPlayerReady(event) {
-        // initActionContainer();
         playerPostMessage(JSON.stringify({eventType: 'playerReady'}));
       }
       var container = null;
       var playerView = null;
+      function initActionContainer1() {
+
+      }
       function initActionContainer() {
-        playerView = document.getElementById('player-container');
-        console.log('set on click listener');
-        // playerView.addEventListener("mousedown", onMouseClick);
+        container = document.getElementById('player-container');
+        playerView = document.getElementById('player');
+        playerView.addEventListener("mousemove", (event) => {
+          console.log('on player mouse move: ', event);
+        });
+        console.log('set on overlay');
         var customView = document.createElement('div');
         customView.style.position = 'absolute';
         customView.style.left = 0;
         customView.style.top = 0;
-        customView.style.width = 10;
-        customView.style.height = 10;
-        customView.style['background-color'] = "#10AAFF99"
-        playerView.addEventListener("mousedown", (event) => {
-          console.log("mousedown");
+        customView.style.right = 0;
+        customView.style.bottom = 0;
+        customView.style['background-color'] = "#10AAFFBB";
+        container.addEventListener("mousedown", (event) => {
+          console.log("mousedown: ", event);
         });
-        playerView.addEventListener("click", (event) => {
-          console.log("click");
+        container.addEventListener("click", (event) => {
+          console.log("click: ", event);
         });
-        playerView.appendChild(customView);
+        container.addEventListener("mouseenter", (event) => {
+          console.log("mouse enter: ", event);
+        });
+        container.addEventListener("mousemove", (event) => {
+          // var mouseMoveEvt = new MouseEvent("mousemove", {
+          //   screenX: event.screenX,
+          //   screenY: event.screenY,
+          //   clientX: event.clientX,
+          //   clientY: event.clientY,
+          // });
+          // playerView.dispatchEvent(mouseMoveEvt);
+          console.log("mouse move: ", event);
+        });
+        container.addEventListener("mouseover", (event) => {
+          console.log("mouse over: ", event);
+        });
+        container.addEventListener("mouseleave", (event) => {
+          console.log("mouse leave: ", event);
+        });
+        //mouseleave
+
+        // container.insertBefore(customView, container.children[0]);
       }
       function onMouseClick(event){
         playerPostMessage(JSON.stringify({eventType: 'onPlayerClick', data: event.data}));
