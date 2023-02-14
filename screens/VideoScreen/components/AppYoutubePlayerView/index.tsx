@@ -11,6 +11,7 @@ import AppYoutubeIframe from '../../../../components/AppYoutubeIframe/AppYoutube
 
 const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => {
     const [isPause, setIsPause] = useState<boolean>(true);
+    const [currentTouchAction, setCurrentTouchAction] = useState<Number>(0);
     const [isPauseOverlayVisible, setIsPauseOverlayVisible] = useState<boolean>(true);
     const [initVideo, setInitVideo] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -70,6 +71,10 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
         setIsPauseOverlayVisible(isVisible);
     }
 
+    const onCurrentTouchAction = (actionId: Number) => {
+        setCurrentTouchAction(actionId);
+    }
+
     return (
         <View style={{ position: 'relative', width: props.width, height: props.height}}>
             <AppYoutubeIframe
@@ -81,12 +86,13 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
                 initialPlayerParams={{
                     preventFullScreen: true,
                 }}
+                onCurrentTouchAction={onCurrentTouchAction}
                 onUpdateVisibilityPauseOverlay={onUpdateVisibilityPauseOverlay}
                 onPlayerPlayed={onPlayerPlayed}
                 forceAndroidAutoplay={true}
                 webViewStyle={{display: isPlayerReady ? 'flex' : 'none'}}
             />
-            {isPlayerReady && isPauseOverlayVisible && <OverlayView 
+            {isPlayerReady && isPauseOverlayVisible && currentTouchAction !== 2 && currentTouchAction !== 1 && <OverlayView 
                 onPress={onToggleVideo}
                 imageSource={props.pausingBgSource}
                 btnSource={props.pausingIconSource} />}

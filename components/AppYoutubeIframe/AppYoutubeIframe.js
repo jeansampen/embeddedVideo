@@ -7,7 +7,14 @@ import React, {
   useCallback,
   useImperativeHandle,
 } from "react";
-import { Platform, Pressable, StyleSheet, TouchableOpacity, TouchableNativeFeedback, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  TouchableOpacity,
+  TouchableNativeFeedback,
+  View,
+} from "react-native";
 import { EventEmitter } from "events";
 import { WebView } from "./WebView";
 import {
@@ -25,13 +32,13 @@ import {
 import { deepComparePlayList } from "./utils";
 import { useHover, useFocus, useActive } from "react-native-web-hooks";
 import PlayerOverlayView from "./PlayerOverlayView";
+import DisableControlOverlayView from "./DisableControlOverlayView";
 
 let HandleTouchView;
 
 try {
   HandleTouchView = require("expo-handle-touch-view").HandleTouchView;
-}
-catch {
+} catch {
   HandleTouchView = View;
 }
 
@@ -54,6 +61,7 @@ const AppYoutubeIframe = (props, ref) => {
     onError = (_err) => {},
     onReady = (_event) => {},
     onPlayerPlayed = () => {},
+    onCurrentTouchAction = (actionId) => {},
     playListStartIndex = 0,
     initialPlayerParams,
     allowWebViewZoom = false,
@@ -137,7 +145,7 @@ const AppYoutubeIframe = (props, ref) => {
       },
       playPlayer: () => {
         injectJavaScript(PLAYER_FUNCTIONS.playVideo);
-        if(!isFirstTimePlay.current){
+        if (!isFirstTimePlay.current) {
           setplayerOverlayVisible(true);
         }
       },
@@ -205,7 +213,7 @@ const AppYoutubeIframe = (props, ref) => {
       try {
         // console.log('onWebMessage: ', event.nativeEvent);
         const message = JSON.parse(event.nativeEvent?.data || "");
-        
+
         if (!message.eventType) {
           return;
         }
@@ -219,25 +227,24 @@ const AppYoutubeIframe = (props, ref) => {
               PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING
             ) {
               onPlayerPlayed?.();
-              showPlayerOverlay(2750);
+              showPlayerOverlay(2350);
               isFirstTimePlay.current = true;
             }
-            if(PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING){
+            if (PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING) {
               onUpdateVisibilityPauseOverlay?.(false);
-            }
-            else if(PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PAUSED){
-              if(isMoveTouchRef.current){
+            } else if (
+              PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PAUSED
+            ) {
+              if (isMoveTouchRef.current) {
                 onUpdateVisibilityPauseOverlay?.(false);
-              }
-              else { 
+              } else {
                 onUpdateVisibilityPauseOverlay?.(true);
               }
-            }
-            else if(PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.ENDED){
+            } else if (
+              PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.ENDED
+            ) {
               injectJavaScript(PLAYER_FUNCTIONS.pauseVideo);
-              injectJavaScript(
-                PLAYER_FUNCTIONS.seekToScript(0, true)
-              );
+              injectJavaScript(PLAYER_FUNCTIONS.seekToScript(0, true));
               isFirstTimePlay.current = false;
               onUpdateVisibilityPauseOverlay?.(true);
             }
@@ -304,12 +311,12 @@ const AppYoutubeIframe = (props, ref) => {
     return res;
   }, [useLocalHTML, contentScale, baseUrlOverride, allowWebViewZoom]);
 
-  if(Platform.OS === "web"){
+  if (Platform.OS === "web") {
     const isHoveredPlayer = useHover(webViewRef);
     const checkHoverInterval = useRef(null);
 
     useEffect(() => {
-      if(isHoveredPlayer && !playerOverlayVisible){
+      if (isHoveredPlayer && !playerOverlayVisible) {
         setplayerOverlayVisible(true);
         checkHoverInterval.current = setInterval(() => {
           setplayerOverlayVisible(false);
@@ -325,151 +332,171 @@ const AppYoutubeIframe = (props, ref) => {
     currentTimeOutDurationRef.current = timeout || timeoutDefault;
     setplayerOverlayVisible(true);
     timeoutRef.current = setTimeout(() => {
-      if(!isMoveTouchRef.current){
+      if (!isMoveTouchRef.current) {
         setplayerOverlayVisible(false);
       }
     }, currentTimeOutDurationRef.current);
-  }
+  };
 
   const onPlayerTap = (evt) => {
-    if(Platform.OS === "ios" || Platform.OS === "android"){
-      if(!playerOverlayVisible){
+    if (Platform.OS === "ios" || Platform.OS === "android") {
+      if (!playerOverlayVisible) {
         showPlayerOverlay();
       }
     }
-  }
+  };
 
   const onTouchStart = (eve) => {
-    console.log('onTouchStart');
-    eve.preventDefault();
     timeStartMoveRef.current = Date.now();
     isStartTouchRef.current = true;
     isMoveTouchRef.current = false;
     isEndTouchRef.current = false;
-    if(!playerOverlayVisible){
+    if (!playerOverlayVisible) {
       onPlayerTap();
     }
-  }
+    // 1: starting touch
+    onCurrentTouchAction?.(1);
+  };
 
   const onTouchMove = (eve) => {
-    console.log('onTouchMove');
-    eve.preventDefault();
     isStartTouchRef.current = false;
     isMoveTouchRef.current = true;
     isEndTouchRef.current = false;
-    if(playerOverlayVisible && timeoutRef.current){
+    if (playerOverlayVisible && timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-  }
+    // 2: moving touch
+    onCurrentTouchAction?.(2);
+  };
 
   const onTouchEnd = (eve) => {
-    console.log('onTouchEnd');
-    eve.preventDefault();
     isStartTouchRef.current = false;
     isMoveTouchRef.current = false;
     isEndTouchRef.current = true;
 
-    if(playerOverlayVisible){
-      const durationMoveSec = (Date.now() - timeStartMoveRef.current);
-      if(durationMoveSec > currentTimeOutDurationRef.current){
+    if (playerOverlayVisible) {
+      const durationMoveSec = Date.now() - timeStartMoveRef.current;
+      if (durationMoveSec > currentTimeOutDurationRef.current) {
         setplayerOverlayVisible(false);
-      }
-      else {
-        if(timeoutRef.current){
+      } else {
+        if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
         timeoutRef.current = setTimeout(() => {
           setplayerOverlayVisible(false);
         }, currentTimeOutDurationRef.current - durationMoveSec);
       }
-      
     }
     timeStartMoveRef.current = 0;
-    
-  }
+    // 3: end touch
+    onCurrentTouchAction?.(3);
+  };
 
   return (
-    <View
-      style={{ height, width}}
-      onStartShouldSetResponderCapture={Platform.OS === 'ios' ? (evt) => { evt.preventDefault(); console.log('onStartShouldSetResponderCapture'); return true; } : undefined}
-      onResponderGrant={Platform.OS === 'ios' ? onTouchStart : undefined}
-      onResponderMove={Platform.OS === 'ios' ? onTouchMove : undefined}
-      onResponderRelease={Platform.OS === 'ios' ? onTouchEnd : undefined}
-      onPressIn={evt => {console.log('on press in: ', evt)}} 
-      onTouchMove={evt => {console.log('on touch move: ', evt)}} 
-      onPressOut={evt => {console.log('on press out: ', evt)}}
+    <View style={{ height, width }}>
+      <View
+        style={{ height, width }}
+        onStartShouldSetResponderCapture={
+          Platform.OS === "ios"
+            ? (evt) => {
+                evt.preventDefault();
+                console.log("onStartShouldSetResponderCapture");
+                return true;
+              }
+            : undefined
+        }
+        onResponderGrant={Platform.OS === "ios" ? onTouchStart : undefined}
+        onResponderMove={Platform.OS === "ios" ? onTouchMove : undefined}
+        onResponderRelease={Platform.OS === "ios" ? onTouchEnd : undefined}
       >
-    <HandleTouchView
-      onTouch={Platform.OS === 'android' ? (evt) => {
-        console.log('on touch: ' + evt.nativeEvent.type);
-        // 0 is start touch
-        if(evt.nativeEvent.type == "0") {
-          onTouchStart(evt);
-        }
-        // 1 is end touch
-        else if(evt.nativeEvent.type == "1") {
-          onTouchEnd(evt);
-        }
-        // 2 is move touch
-        else if(evt.nativeEvent.type == "2") {
-          onTouchMove(evt);
-        }
-      } : undefined}
-      style={{width: '100%', height: '100%'}}>
-      <WebView
-          bounces={false}
-          originWhitelist={["*"]}
-          allowsInlineMediaPlayback
-          style={[styles.webView, webViewStyle]}
-          mediaPlaybackRequiresUserAction={false}
-          onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
-          allowsFullscreenVideo={
-            !initialPlayerParamsRef.current.preventFullScreen
+        <HandleTouchView
+          onTouch={
+            Platform.OS === "android"
+              ? (evt) => {
+                  console.log("on touch: " + evt.nativeEvent.type);
+                  // 0 is start touch
+                  if (evt.nativeEvent.type == "0") {
+                    onTouchStart(evt);
+                  }
+                  // 1 is end touch
+                  else if (evt.nativeEvent.type == "1") {
+                    onTouchEnd(evt);
+                  }
+                  // 2 is move touch
+                  else if (evt.nativeEvent.type == "2") {
+                    onTouchMove(evt);
+                  }
+                }
+              : undefined
           }
-          userAgent={
-            forceAndroidAutoplay
-              ? Platform.select({ android: CUSTOM_USER_AGENT, ios: "" })
-              : ""
-          }
-          // props above this are override-able
+          style={{ width: "100%", height: "100%" }}
+        >
+          <WebView
+            bounces={false}
+            originWhitelist={["*"]}
+            allowsInlineMediaPlayback
+            style={[styles.webView, webViewStyle]}
+            mediaPlaybackRequiresUserAction={false}
+            onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
+            allowsFullscreenVideo={
+              !initialPlayerParamsRef.current.preventFullScreen
+            }
+            userAgent={
+              forceAndroidAutoplay
+                ? Platform.select({ android: CUSTOM_USER_AGENT, ios: "" })
+                : ""
+            }
+            // props above this are override-able
 
-          // --
-          {...webViewProps}
-          // --
+            // --
+            {...webViewProps}
+            // --
 
-          // add props that should not be allowed to be overridden below
-          source={source}
-          ref={webViewRef}
-          onMessage={onWebMessage}
-        />
-      </HandleTouchView>
-      {playerOverlayVisible && <View style={[styles.overlay, {top: height/2 - 25, left: width/2 - 25}]}>
-        <PlayerOverlayView visible={playerOverlayVisible} ref={overlayRef} />
-      </View>}
+            // add props that should not be allowed to be overridden below
+            source={source}
+            ref={webViewRef}
+            onMessage={onWebMessage}
+          />
+        </HandleTouchView>
+        {playerOverlayVisible && (
+          <View
+            style={[
+              styles.overlay,
+              { top: height / 2 - 25, left: width / 2 - 25 },
+            ]}
+          >
+            <PlayerOverlayView
+              visible={playerOverlayVisible}
+              ref={overlayRef}
+            />
+          </View>
+        )}
+      </View>
+      <DisableControlOverlayView width={width} height={height} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  webView: { backgroundColor: "transparent", width: '100%', height: '100%' },
+  webView: { backgroundColor: "transparent", width: "100%", height: "100%" },
   overlay: {
     position: "absolute",
-    margin: 'auto',
+    margin: "auto",
     zIndex: 1,
-    backgroundColor: '#ffffff',
-    width: 50, 
+    backgroundColor: "#ffffff",
+    width: 50,
     height: 50,
     borderRadius: 10,
   },
   hiddenTouchOverlay: {
     position: "absolute",
-    margin: 'auto',
-    left: 0, 
+    margin: "auto",
+    left: 0,
     top: 0,
     right: 0,
     bottom: 0,
-  }
+  },
 });
 
 export default forwardRef(AppYoutubeIframe);
