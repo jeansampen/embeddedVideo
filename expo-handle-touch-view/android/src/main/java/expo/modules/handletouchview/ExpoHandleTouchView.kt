@@ -17,7 +17,11 @@ class ExpoHandleTouchView(context: Context, appContext: AppContext) : ExpoView(c
     override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
         ev?.let {
             val actionType: String = "${it.action}"
-            onTouch(mapOf("type" to actionType))
+            val x = it.x;
+            val y = it.y;
+            val rawX = it.rawX;
+            val rawY = it.rawY;
+            onTouch(mapOf("type" to actionType, "x" to x, "y" to y, "rawX" to rawX, "rawY" to rawY));
         }
         return false
         //return super.onInterceptTouchEvent(ev)

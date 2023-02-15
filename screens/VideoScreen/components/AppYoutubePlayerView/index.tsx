@@ -17,6 +17,9 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPlayerReady, setIsPlayerReady] = useState(false);
     const [isPlayed, setIsPlayed] = useState(false);
+
+    const timeOutPauseOverlayVisibleRef = useRef<any>(null);
+
     const onStateChange = useCallback((state: string) => {
         
         if(isPlayed){
@@ -67,8 +70,26 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
         }
     };
 
+    const onPlayVideo = () => {
+        setIsPause(false);
+        if(!initVideo){
+            setInitVideo(true);
+        }
+        playerRef.current?.playPlayer();
+        setIsPauseOverlayVisible(false);
+    }
+
     const onUpdateVisibilityPauseOverlay = (isVisible: boolean) => {
-        setIsPauseOverlayVisible(isVisible);
+        if(timeOutPauseOverlayVisibleRef.current != null){
+            clearTimeout(timeOutPauseOverlayVisibleRef.current);
+            timeOutPauseOverlayVisibleRef.current = null;
+        }
+        else {
+            timeOutPauseOverlayVisibleRef.current = setTimeout(() => {
+                setIsPauseOverlayVisible(isVisible);
+                timeOutPauseOverlayVisibleRef.current = null;
+            }, 800);
+        }
     }
 
     const onCurrentTouchAction = (actionId: Number) => {
@@ -93,7 +114,7 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
                 webViewStyle={{display: isPlayerReady ? 'flex' : 'none'}}
             />
             {isPlayerReady && isPauseOverlayVisible && currentTouchAction !== 2 && currentTouchAction !== 1 && <OverlayView 
-                onPress={onToggleVideo}
+                onPress={onPlayVideo}
                 imageSource={props.pausingBgSource}
                 btnSource={props.pausingIconSource} />}
         </View>
