@@ -9,6 +9,8 @@ import { useState } from 'react';
 import { IAppYoutubeIframePropsProps } from './types';
 import AppYoutubeIframe from '../../../../components/AppYoutubeIframe/AppYoutubeIframe';
 
+const DELAY_TIME_TO_CHANGE_PLAY_STATE = 1000;
+
 const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => {
     const [isPause, setIsPause] = useState<boolean>(true);
     const [currentTouchAction, setCurrentTouchAction] = useState<Number>(0);
@@ -20,12 +22,18 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
 
     const timeOutPauseOverlayVisibleRef = useRef<any>(null);
 
+  const timeOutDelayVideoTapRef = useRef(0);
+
     const onStateChange = useCallback((state: string) => {
         
         if(isPlayed){
+
             if(state === "paused") {
-                setIsPause(true);
-                setIsPlaying(false);
+                if(Date.now() - timeOutDelayVideoTapRef.current > DELAY_TIME_TO_CHANGE_PLAY_STATE){
+                    setIsPause(true);
+                    setIsPlaying(false);
+                    timeOutDelayVideoTapRef.current = Date.now();
+                }
             }
             else if(state === "playing") {
                 setIsPause(false);
@@ -80,8 +88,8 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
     }
 
     const onUpdateVisibilityPauseOverlay = (isVisible: boolean) => {
+        clearTimeout(timeOutPauseOverlayVisibleRef.current);
         if(timeOutPauseOverlayVisibleRef.current != null){
-            clearTimeout(timeOutPauseOverlayVisibleRef.current);
             timeOutPauseOverlayVisibleRef.current = null;
         }
         else {

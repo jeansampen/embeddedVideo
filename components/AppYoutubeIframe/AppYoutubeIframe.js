@@ -35,6 +35,7 @@ import { useHover, useFocus, useActive } from "react-native-web-hooks";
 import PlayerOverlayView from "./PlayerOverlayView";
 import DisableControlOverlayView from "./DisableControlOverlayView";
 import DoubleClickView from "./DoubleClickView";
+import SeekOverlayView from "./SeekOverlayView";
 
 let HandleTouchView;
 
@@ -84,6 +85,7 @@ const AppYoutubeIframe = (props, ref) => {
   const videoDurationRef = useRef(0);
 
   const webViewRef = useRef(null);
+  const seekOverlayViewRef = useRef(null);
   const eventEmitter = useRef(new EventEmitter());
 
   const isStartTouchRef = useRef(false);
@@ -244,11 +246,9 @@ const AppYoutubeIframe = (props, ref) => {
             }
             if (PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING) {
               onUpdateVisibilityPauseOverlay?.(false);
-              console.log('on play');
             } else if (
               PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PAUSED
             ) {
-              console.log('on pause');
               if (isMoveTouchRef.current) {
                 onUpdateVisibilityPauseOverlay?.(false);
               } else {
@@ -370,23 +370,15 @@ const AppYoutubeIframe = (props, ref) => {
     }
     // 1: starting touch
     onCurrentTouchAction?.(1);
-    if(playerOverlayVisible){
-      if(previousEndTouchRef.current){
-        const delay = Date.now() - timeTouchRef.current;
-        if(delay < DELAY_DOUBLE_CLICK){
-          handleDoubleClickToSeekVideo(eve.nativeEvent);
-          currentStartTouchRef.current = null;
-          currentEndTouchRef.current = null;
-          previousEndTouchRef.current = null;
-          previousStartTouchRef.current = null;
-        } 
-        else {
-          currentStartTouchRef.current = null;
-          currentEndTouchRef.current = null;
-          previousEndTouchRef.current = null;
-          previousStartTouchRef.current = eve.nativeEvent;
-        }
-      }
+    if(previousEndTouchRef.current){
+      const delay = Date.now() - timeTouchRef.current;
+      if(delay < DELAY_DOUBLE_CLICK){
+        handleDoubleClickToSeekVideo(eve.nativeEvent);
+        currentStartTouchRef.current = null;
+        currentEndTouchRef.current = null;
+        previousEndTouchRef.current = null;
+        previousStartTouchRef.current = null;
+      } 
       else {
         currentStartTouchRef.current = null;
         currentEndTouchRef.current = null;
@@ -398,7 +390,7 @@ const AppYoutubeIframe = (props, ref) => {
       currentStartTouchRef.current = null;
       currentEndTouchRef.current = null;
       previousEndTouchRef.current = null;
-      previousStartTouchRef.current = null;
+      previousStartTouchRef.current = eve.nativeEvent;
     }
     timeTouchRef.current = Date.now();
   };
@@ -438,12 +430,10 @@ const AppYoutubeIframe = (props, ref) => {
     onCurrentTouchAction?.(3);
 
     if(previousStartTouchRef.current) {
-      console.log('touch up 1');
       const delay = Date.now() - timeTouchRef.current;
       if(delay < DELAY_NORMAL_CLICK){
         previousEndTouchRef.current = eve.nativeEvent;
         timeTouchRef.current = Date.now();
-        console.log('click one time');
       }
       else {
         currentStartTouchRef.current = null;
@@ -509,6 +499,7 @@ const AppYoutubeIframe = (props, ref) => {
         else {
           onSeekVideo(currentPlayerTime + 5)
         }
+        seekOverlayViewRef.current.onDoAnimation(1);
       }
       else if(x < width/2 - 20) {
         // seek backward
@@ -518,7 +509,7 @@ const AppYoutubeIframe = (props, ref) => {
         else {
           onSeekVideo(currentPlayerTime - 5)
         }
-        
+        seekOverlayViewRef.current.onDoAnimation(0);
       }
       setTimeout(() => {
         injectJavaScript(
@@ -548,7 +539,6 @@ const AppYoutubeIframe = (props, ref) => {
           onTouch={
             Platform.OS === "android"
               ? (evt) => {
-                  console.log("on touch: " + evt.nativeEvent.type);
                   // 0 is start touch
                   if (evt.nativeEvent.type == "0") {
                     onTouchStart(evt);
@@ -606,6 +596,7 @@ const AppYoutubeIframe = (props, ref) => {
             />
           </View>
         )}
+        <SeekOverlayView ref={seekOverlayViewRef} />
       </View>
       <DisableControlOverlayView width={width} height={height} />
     </View>
