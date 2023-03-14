@@ -69,6 +69,9 @@ true;
   initWebOverlay: () => {
     return `initActionContainer(); true`;
   },
+  toggleSeek: (visible: boolean) => {
+    return `onShowSeek(${visible}); true`;
+  },
 };
 
 export const playMode = {
@@ -177,10 +180,28 @@ export const MAIN_SCRIPT = (
             width: 100%;
             height: 100%;
         }
+        .seekRight {
+          position: absolute;
+          top: 0;
+          right: 0;
+          height: 80%;
+          width: 40%;
+          z-index: 9999;
+          background-color: #ff00004D;
+        }
+        .seekLeft {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 80%;
+          width: 40%;
+          z-index: 9999;
+          background-color: #ff00004D;
+        }
       </style>
     </head>
     <body>
-      <div class="container">
+      <div class="container" id="container">
         <div class="video" id="player" />
       </div>
       <script>
@@ -221,26 +242,74 @@ export const MAIN_SCRIPT = (
             }
           });
         }
+        function playerPostMessage(event) {
+          if(window.ReactNativeWebView){
+            window.ReactNativeWebView.postMessage(event);
+          }
+          else {
+            window.parent.postMessage(event, window.parent.origin);
+          }
+        }
         function onPlayerError(event) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerError', data: event.data}))
+          playerPostMessage(JSON.stringify({eventType: 'playerError', data: event.data}))
         }
         function onPlaybackRateChange(event) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playbackRateChange', data: event.data}))
+          playerPostMessage(JSON.stringify({eventType: 'playbackRateChange', data: event.data}))
         }
         function onPlaybackQualityChange(event) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
+          playerPostMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
         }
         function onPlayerReady(event) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerReady'}))
+          playerPostMessage(JSON.stringify({eventType: 'playerReady'}))
+          initControl();
+        }
+        var seekRightOverlay = null;
+        var seekLeftOverlay = null;
+        var isSeekInContainer = false;
+        var container = null;
+        function initControl() {
+          container = document.getElementById('container')
+          seekRightOverlay = document.createElement("div");
+          seekRightOverlay.classList.add('seekRight');
+          seekRightOverlay.addEventListener('click', () => {
+            playerPostMessage(JSON.stringify({eventType: 'seekClick', data: {side: 'right'}}));
+          });
+
+          seekLeftOverlay = document.createElement("div");
+          seekLeftOverlay.classList.add('seekLeft');
+          seekLeftOverlay.addEventListener('click', () => {
+            playerPostMessage(JSON.stringify({eventType: 'seekClick', data: {side: 'left'}}));
+            onShowSeek(false);
+          });
+        }
+        function onShowSeek(visible) {
+          if(visible){
+            if(!isSeekInContainer){
+              isSeekInContainer = true;
+              container.appendChild(seekRightOverlay);
+              container.appendChild(seekLeftOverlay);
+              setTimeout(() => {
+                onShowSeek(false);
+              }, 500);
+            }
+          }
+          else {
+            if(isSeekInContainer){
+              isSeekInContainer = false;
+              container.removeChild(seekRightOverlay);
+              container.removeChild(seekLeftOverlay);
+            }
+          }
+          true
         }
         var done = false;
         function onPlayerStateChange(event) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerStateChange', data: event.data}))
+          playerPostMessage(JSON.stringify({eventType: 'playerStateChange', data: event.data}))
         }
         var isFullScreen = false;
         function onFullScreenChange() {
           isFullScreen = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-          window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'fullScreenChange', data: Boolean(isFullScreen)}));
+          playerPostMessage(JSON.stringify({eventType: 'fullScreenChange', data: Boolean(isFullScreen)}));
         }
         document.addEventListener('fullscreenchange', onFullScreenChange)
         document.addEventListener('mozfullscreenchange', onFullScreenChange)

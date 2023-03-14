@@ -43,7 +43,7 @@ import DisableControlOverlayView from "./DisableControlOverlayView";
 import SeekOverlayView from "./SeekOverlayView";
 import WebView from "./WebView";
 import DoubleTapView from "../DoubleTapView";
-import SeekControlView from "./SeekControlView";
+import SeekControlView from "./SeekControlViewVerTwo";
 
 let HandleTouchView: any;
 
@@ -247,6 +247,18 @@ const AppYoutubeIframe = (props: any, ref: any) => {
           case "fullScreenChange":
             onFullScreenChange(message.data);
             break;
+          case "seekClick": 
+            if(isFirstTimePlay.current){
+              if(message.data?.side === "left"){
+                console.log('do seek left')
+                onSeek(0)
+              }
+              else if(message.data?.side === "right"){
+                console.log('do seek right')
+                onSeek(1)
+              }
+            }
+            break;
           case "playerStateChange":
             if (
               !isFirstTimePlay.current &&
@@ -383,12 +395,17 @@ const AppYoutubeIframe = (props: any, ref: any) => {
     isStartTouchRef.current = true;
     isMoveTouchRef.current = false;
     isEndTouchRef.current = false;
-    if (!playerOverlayVisible) {
-      onPlayerTap(null);
+    if(isFirstTimePlay.current){
+      injectJavaScript(
+        PLAYER_FUNCTIONS.toggleSeek(true)
+      );
     }
     console.log('on touch start')
     // 1: starting touch
     onCurrentTouchAction?.(1);
+    if(!seekControlViewVisible){
+      
+    }
   };
 
   const onTouchMove = (eve: any) => {
@@ -572,7 +589,6 @@ const AppYoutubeIframe = (props: any, ref: any) => {
           )}
           <SeekOverlayView ref={seekOverlayViewRef} />
         </View>
-        <SeekControlView onDbClickLeft={onSeekLeft} onDbClickRight={onSeekRight} />
       <DisableControlOverlayView width={width} height={height} />
     </View>
   );
