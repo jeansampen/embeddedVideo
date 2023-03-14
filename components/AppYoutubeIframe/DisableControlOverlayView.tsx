@@ -5,15 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  GestureResponderEvent,
 } from "react-native";
 import { useHover } from "react-native-web-hooks";
 
-const DisableControlOverlayView = (props, ref) => {
-  const onTouchStart = (eve) => {};
+const DisableControlOverlayView = (props: any, ref: any) => {
+  const onTouchStart = (eve: GestureResponderEvent) => {};
 
-  const onTouchMove = (eve) => {};
+  const onTouchMove = (eve: GestureResponderEvent) => {};
 
-  const onTouchEnd = (eve) => {};
+  const onTouchEnd = (eve: GestureResponderEvent) => {};
   return (
     <View style={styles.container} pointerEvents="box-none">
       <View
@@ -55,6 +56,19 @@ const DisableControlOverlayView = (props, ref) => {
         onResponderRelease={Platform.OS === "ios" ? onTouchEnd : undefined}
         style={styles.disableBottomIcon}
       ></View>
+      <View
+        onStartShouldSetResponderCapture={
+          Platform.OS === "ios"
+            ? (evt) => {
+                return true;
+              }
+            : undefined
+        }
+        onResponderGrant={Platform.OS === "ios" ? onTouchStart : undefined}
+        onResponderMove={Platform.OS === "ios" ? onTouchMove : undefined}
+        onResponderRelease={Platform.OS === "ios" ? onTouchEnd : undefined}
+        style={styles.disableVolume}
+      ></View>
     </View>
   );
 };
@@ -80,6 +94,14 @@ const styles = StyleSheet.create({
   disableBottom: {
     position: "absolute",
     right: 0,
+    bottom: 0,
+    width: 165,
+    height: Platform.OS === "ios" ? 50 : 40,
+    zIndex: 9999,
+  },
+  disableVolume: {
+    position: "absolute",
+    left: 60,
     bottom: 0,
     width: 165,
     height: Platform.OS === "ios" ? 50 : 40,

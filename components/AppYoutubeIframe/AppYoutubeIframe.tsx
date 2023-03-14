@@ -6,6 +6,7 @@ import React, {
   forwardRef,
   useCallback,
   useImperativeHandle,
+  lazy,
 } from "react";
 import {
   Platform,
@@ -15,14 +16,19 @@ import {
   TouchableNativeFeedback,
   View,
   PixelRatio,
+  GestureResponderEvent,
 } from "react-native";
 import { EventEmitter } from "events";
-import { WebView } from "./WebView";
 import {
-  PLAYER_ERROR,
-  PLAYER_STATES,
   CUSTOM_USER_AGENT,
-  PLAYER_STATES_NAMES,
+  PLAYER_STATE_PLAYING_INDEX,
+  PLAYER_STATE_PAUSED_INDEX,
+  PLAYER_STATE_ENDED_INDEX,
+  onGetStateName,
+  onGetError,
+  PLAYER_STATE_BUFFERING_INDEX,
+  PLAYER_STATE_VIDEO_CUED_INDEX,
+  PLAYER_STATE_UNSTARTED_INDEX,
 } from "./constants";
 import {
   playMode,
@@ -34,10 +40,12 @@ import { deepComparePlayList } from "./utils";
 import { useHover, useFocus, useActive } from "react-native-web-hooks";
 import PlayerOverlayView from "./PlayerOverlayView";
 import DisableControlOverlayView from "./DisableControlOverlayView";
-import DoubleClickView from "./DoubleClickView";
 import SeekOverlayView from "./SeekOverlayView";
+import WebView from "./WebView";
+import DoubleTapView from "../DoubleTapView";
+import SeekControlView from "./SeekControlView";
 
-let HandleTouchView;
+let HandleTouchView: any;
 
 try {
   HandleTouchView = require("expo-handle-touch-view").HandleTouchView;
@@ -45,7 +53,7 @@ try {
   HandleTouchView = View;
 }
 
-const AppYoutubeIframe = (props, ref) => {
+const AppYoutubeIframe = (props: any, ref: any) => {
   const {
     height,
     width,
@@ -60,32 +68,34 @@ const AppYoutubeIframe = (props, ref) => {
     baseUrlOverride,
     playbackRate = 1,
     contentScale = 1.0,
-    onUpdateVisibilityPauseOverlay = (visible) => {},
-    onError = (_err) => {},
-    onReady = (_event) => {},
+    onUpdateVisibilityPauseOverlay = (visible: boolean) => {},
+    onError = (_err: any) => {},
+    onReady = (_event: any) => {},
     onPlayerPlayed = () => {},
-    onCurrentTouchAction = (actionId) => {},
+    onCurrentTouchAction = (actionId: any) => {},
     playListStartIndex = 0,
     initialPlayerParams,
     allowWebViewZoom = false,
     forceAndroidAutoplay = false,
-    onChangeState = (_event) => {},
-    onFullScreenChange = (_status) => {},
-    onPlaybackQualityChange = (_quality) => {},
-    onPlaybackRateChange = (_playbackRate) => {},
+    onChangeState = (_event: any) => {},
+    onFullScreenChange = (_status: any) => {},
+    onPlaybackQualityChange = (_quality: any) => {},
+    onPlaybackRateChange = (_playbackRate: any) => {},
   } = props;
 
   const [playerReady, setPlayerReady] = useState(false);
   const [playerOverlayVisible, setplayerOverlayVisible] = useState(false);
+  const [seekControlViewVisible, setSeekControlViewVisible] = useState(false);
   const lastVideoIdRef = useRef(videoId);
   const lastPlayListRef = useRef(playList);
   const initialPlayerParamsRef = useRef(initialPlayerParams || {});
   const overlayRef = useRef(null);
   const isFirstTimePlay = useRef(false);
-  const videoDurationRef = useRef(0);
+  const videoDurationRef = useRef<number>(0);
+  const touchMoveTimeRef = useRef<number>(0);
 
-  const webViewRef = useRef(null);
-  const seekOverlayViewRef = useRef(null);
+  const webViewRef = useRef<any | null>(null);
+  const seekOverlayViewRef = useRef<any>(null);
   const eventEmitter = useRef(new EventEmitter());
 
   const isStartTouchRef = useRef(false);
@@ -93,7 +103,9 @@ const AppYoutubeIframe = (props, ref) => {
   const isEndTouchRef = useRef(false);
   const timeStartMoveRef = useRef(0);
   const currentTimeOutDurationRef = useRef(0);
-  const timeoutRef = useRef(null);
+  const timeoutRef = useRef<any>(null);
+
+  const touchCount = useRef<number>(0);
 
   const DELAY_NORMAL_CLICK = 500;
   const DELAY_DOUBLE_CLICK = 500;
@@ -148,7 +160,7 @@ const AppYoutubeIframe = (props, ref) => {
           eventEmitter.current.once("getAvailablePlaybackRates", resolve);
         });
       },
-      seekTo: (seconds, allowSeekAhead) => {
+      seekTo: (seconds: number, allowSeekAhead: boolean) => {
         injectJavaScript(
           PLAYER_FUNCTIONS.seekToScript(seconds, allowSeekAhead)
         );
@@ -166,7 +178,7 @@ const AppYoutubeIframe = (props, ref) => {
     []
   );
 
-  const injectJavaScript = (command) => {
+  const injectJavaScript = (command: string) => {
     if (Platform.OS === "web") {
       webViewRef?.current?.frameRef.contentWindow.eval(command);
     } else {
@@ -180,8 +192,8 @@ const AppYoutubeIframe = (props, ref) => {
       return;
     }
     const playVideoScripts = [
-      playMode[play],
-      soundMode[mute],
+      play ? playMode.PLAY_MODE : playMode.PAUSE_MODE,
+      mute ? soundMode.MUTE_MODE : soundMode.UNMUTE_MODE,
       PLAYER_FUNCTIONS.setVolume(volume),
       PLAYER_FUNCTIONS.setPlaybackRate(playbackRate),
     ];
@@ -222,7 +234,7 @@ const AppYoutubeIframe = (props, ref) => {
   }, [playList, play, playListStartIndex, playerReady]);
 
   const onWebMessage = useCallback(
-    (event) => {
+    (event: any) => {
       try {
         // console.log('onWebMessage: ', event.nativeEvent);
         const message = JSON.parse(event.nativeEvent?.data || "");
@@ -230,6 +242,7 @@ const AppYoutubeIframe = (props, ref) => {
         if (!message.eventType) {
           return;
         }
+        const dataNumber: number = message.data;
         switch (message.eventType) {
           case "fullScreenChange":
             onFullScreenChange(message.data);
@@ -237,32 +250,36 @@ const AppYoutubeIframe = (props, ref) => {
           case "playerStateChange":
             if (
               !isFirstTimePlay.current &&
-              PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING
+              dataNumber == PLAYER_STATE_PLAYING_INDEX
             ) {
               onPlayerPlayed?.();
               showPlayerOverlay(2750);
               isFirstTimePlay.current = true;
               updateVideoDuration();
             }
-            if (PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PLAYING) {
+            if (dataNumber == PLAYER_STATE_PLAYING_INDEX) {
+              // console.log("on play state");
               onUpdateVisibilityPauseOverlay?.(false);
-            } else if (
-              PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.PAUSED
-            ) {
+            } else if (dataNumber === PLAYER_STATE_PAUSED_INDEX) {
+              // console.log("on pause state");
               if (isMoveTouchRef.current) {
                 onUpdateVisibilityPauseOverlay?.(false);
               } else {
                 onUpdateVisibilityPauseOverlay?.(true);
               }
-            } else if (
-              PLAYER_STATES[message.data] === PLAYER_STATES_NAMES.ENDED
-            ) {
+            } else if (dataNumber === PLAYER_STATE_BUFFERING_INDEX) {
+              // console.log("on buffer state");
+            } else if (dataNumber === PLAYER_STATE_VIDEO_CUED_INDEX) {
+              // console.log("on cued state");
+            } else if (dataNumber === PLAYER_STATE_UNSTARTED_INDEX) {
+              // console.log("on unstart state");
+            } else if (dataNumber === PLAYER_STATE_ENDED_INDEX) {
               injectJavaScript(PLAYER_FUNCTIONS.pauseVideo);
               injectJavaScript(PLAYER_FUNCTIONS.seekToScript(0, true));
               isFirstTimePlay.current = false;
               onUpdateVisibilityPauseOverlay?.(true);
             }
-            onChangeState(PLAYER_STATES[message.data]);
+            onChangeState(onGetStateName(dataNumber));
             break;
           case "playerReady":
             onReady();
@@ -273,7 +290,7 @@ const AppYoutubeIframe = (props, ref) => {
             onPlaybackQualityChange(message.data);
             break;
           case "playerError":
-            onError(PLAYER_ERROR[message.data]);
+            onError(onGetError(dataNumber));
             break;
           case "playbackRateChange":
             onPlaybackRateChange(message.data);
@@ -297,7 +314,7 @@ const AppYoutubeIframe = (props, ref) => {
   );
 
   const onShouldStartLoadWithRequest = useCallback(
-    (request) => {
+    (request: any) => {
       try {
         const url = request.mainDocumentURL || request.url;
         const iosFirstLoad = Platform.OS === "ios" && url === "about:blank";
@@ -327,7 +344,7 @@ const AppYoutubeIframe = (props, ref) => {
 
   if (Platform.OS === "web") {
     const isHoveredPlayer = useHover(webViewRef);
-    const checkHoverInterval = useRef(null);
+    const checkHoverInterval = useRef<any>(null);
 
     useEffect(() => {
       if (isHoveredPlayer && !playerOverlayVisible) {
@@ -341,7 +358,7 @@ const AppYoutubeIframe = (props, ref) => {
     }, [isHoveredPlayer]);
   }
 
-  const showPlayerOverlay = (timeout) => {
+  const showPlayerOverlay = (timeout?: number) => {
     const timeoutDefault = Platform.OS === "android" ? 3250 : 4250;
     currentTimeOutDurationRef.current = timeout || timeoutDefault;
     setplayerOverlayVisible(true);
@@ -352,7 +369,7 @@ const AppYoutubeIframe = (props, ref) => {
     }, currentTimeOutDurationRef.current);
   };
 
-  const onPlayerTap = (evt) => {
+  const onPlayerTap = (evt: any) => {
     if (Platform.OS === "ios" || Platform.OS === "android") {
       if (!playerOverlayVisible) {
         showPlayerOverlay();
@@ -360,42 +377,21 @@ const AppYoutubeIframe = (props, ref) => {
     }
   };
 
-  const onTouchStart = (eve) => {
+  const onTouchStart = (eve: any) => {
+    touchMoveTimeRef.current = 0;
     timeStartMoveRef.current = Date.now();
     isStartTouchRef.current = true;
     isMoveTouchRef.current = false;
     isEndTouchRef.current = false;
     if (!playerOverlayVisible) {
-      onPlayerTap();
+      onPlayerTap(null);
     }
+    console.log('on touch start')
     // 1: starting touch
     onCurrentTouchAction?.(1);
-    if(previousEndTouchRef.current){
-      const delay = Date.now() - timeTouchRef.current;
-      if(delay < DELAY_DOUBLE_CLICK){
-        handleDoubleClickToSeekVideo(eve.nativeEvent);
-        currentStartTouchRef.current = null;
-        currentEndTouchRef.current = null;
-        previousEndTouchRef.current = null;
-        previousStartTouchRef.current = null;
-      } 
-      else {
-        currentStartTouchRef.current = null;
-        currentEndTouchRef.current = null;
-        previousEndTouchRef.current = null;
-        previousStartTouchRef.current = eve.nativeEvent;
-      }
-    }
-    else {
-      currentStartTouchRef.current = null;
-      currentEndTouchRef.current = null;
-      previousEndTouchRef.current = null;
-      previousStartTouchRef.current = eve.nativeEvent;
-    }
-    timeTouchRef.current = Date.now();
   };
 
-  const onTouchMove = (eve) => {
+  const onTouchMove = (eve: any) => {
     isStartTouchRef.current = false;
     isMoveTouchRef.current = true;
     isEndTouchRef.current = false;
@@ -403,11 +399,12 @@ const AppYoutubeIframe = (props, ref) => {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    touchMoveTimeRef.current += 1;
     // 2: moving touch
     onCurrentTouchAction?.(2);
   };
 
-  const onTouchEnd = (eve) => {
+  const onTouchEnd = (eve: any) => {
     isStartTouchRef.current = false;
     isMoveTouchRef.current = false;
     isEndTouchRef.current = true;
@@ -428,27 +425,8 @@ const AppYoutubeIframe = (props, ref) => {
     timeStartMoveRef.current = 0;
     // 3: end touch
     onCurrentTouchAction?.(3);
-
-    if(previousStartTouchRef.current) {
-      const delay = Date.now() - timeTouchRef.current;
-      if(delay < DELAY_NORMAL_CLICK){
-        previousEndTouchRef.current = eve.nativeEvent;
-        timeTouchRef.current = Date.now();
-      }
-      else {
-        currentStartTouchRef.current = null;
-        currentEndTouchRef.current = null;
-        previousEndTouchRef.current = null;
-        previousStartTouchRef.current = eve.nativeEvent;
-        timeTouchRef.current = Date.now();
-      } 
-    }
-    else {
-      currentStartTouchRef.current = null;
-      currentEndTouchRef.current = null;
-      previousEndTouchRef.current = null;
-      previousStartTouchRef.current = null;
-      timeTouchRef.current = Date.now();
+    if (touchMoveTimeRef.current > 10) {
+      onUpdateVisibilityPauseOverlay?.(false);
     }
   };
 
@@ -457,154 +435,151 @@ const AppYoutubeIframe = (props, ref) => {
     return new Promise((resolve) => {
       eventEmitter.current.once("getDuration", resolve);
     });
-  }
+  };
 
   const onGetVideoCurrentTime = () => {
     injectJavaScript(PLAYER_FUNCTIONS.currentTimeScript);
-    return new Promise((resolve) => {
+    return new Promise<number>((resolve) => {
       eventEmitter.current.once("getCurrentTime", resolve);
     });
-  }
+  };
 
-  const onSeekVideo = (seconds) => {
-    injectJavaScript(
-      PLAYER_FUNCTIONS.seekToScript(seconds, true)
-    );
-  }
+  const onSeekVideo = (seconds: number) => {
+    injectJavaScript(PLAYER_FUNCTIONS.seekToScript(seconds, true));
+  };
 
   const updateVideoDuration = async () => {
-    videoDurationRef.current = await onGetVideoDuration();
+    const result = await onGetVideoDuration();
+    if (typeof result == "number") {
+      videoDurationRef.current = result;
+    } else {
+      videoDurationRef.current = 0;
+    }
+  };
+
+  const onSeekRight = (currentPlayerTime: number) => {
+    if (currentPlayerTime + 5 > videoDurationRef.current) {
+      onSeekVideo(videoDurationRef.current);
+    } else {
+      onSeekVideo(currentPlayerTime + 5);
+    }
+    seekOverlayViewRef.current.onDoAnimation(1);
   }
 
-  const handleDoubleClickToSeekVideo = async (nativeEvt) => {
-    var x, y;
-    if(Platform.OS == "ios"){
-      x = nativeEvt.locationX;
-      y = nativeEvt.locationY;
-      // frame content video 
+  const onSeekLeft = (currentPlayerTime: number) => {
+    if (currentPlayerTime - 5 < 0) {
+      onSeekVideo(0);
+    } else {
+      onSeekVideo(currentPlayerTime - 5);
     }
-    else if(Platform.OS == "android"){
-      const ratio = PixelRatio.get();
-      x = nativeEvt.x/ratio;
-      y = nativeEvt.y/ratio;
-      // frame content video
-    }
-    if(y > 60 && y < height - 60){
-      const currentPlayerTime = await onGetVideoCurrentTime();
-      if(x > width/2 + 20){
-        // seek forward
-        if(currentPlayerTime + 5 > videoDurationRef.current){
-          onSeekVideo(videoDurationRef.current);
-        }
-        else {
-          onSeekVideo(currentPlayerTime + 5)
-        }
-        seekOverlayViewRef.current.onDoAnimation(1);
+    seekOverlayViewRef.current.onDoAnimation(0);
+  }
+
+  // side: 0 left, 1 right
+  const onSeek = async (side: number) => {
+    const currentPlayerTime = await onGetVideoCurrentTime();
+    if (videoDurationRef.current) {
+      if(side === 0){
+        onSeekLeft(currentPlayerTime)
       }
-      else if(x < width/2 - 20) {
-        // seek backward
-        if(currentPlayerTime - 5 < 0){
-          onSeekVideo(0);
-        }
-        else {
-          onSeekVideo(currentPlayerTime - 5)
-        }
-        seekOverlayViewRef.current.onDoAnimation(0);
+      else {
+        onSeekRight(currentPlayerTime)
       }
       setTimeout(() => {
-        injectJavaScript(
-          PLAYER_FUNCTIONS.playVideo
-        );
+        injectJavaScript(PLAYER_FUNCTIONS.playVideo);
       }, 650);
-      // keep player playing
     }
-  }
+  } 
 
   return (
     <View style={{ height, width }}>
-      <View
-        style={{ height, width }}
-        onStartShouldSetResponderCapture={
-          Platform.OS === "ios"
-            ? (evt) => {
-                return true;
-              }
-            : undefined
-        }
-        onResponderGrant={Platform.OS === "ios" ? onTouchStart : undefined}
-        onResponderMove={Platform.OS === "ios" ? onTouchMove : undefined}
-        onResponderRelease={Platform.OS === "ios" ? onTouchEnd : undefined}
-      >
-        <HandleTouchView
-          onTouch={
-            Platform.OS === "android"
+        <View
+          style={{ height, width }}
+          onMoveShouldSetResponderCapture={
+            Platform.OS === "ios"
               ? (evt) => {
-                  // 0 is start touch
-                  if (evt.nativeEvent.type == "0") {
-                    onTouchStart(evt);
-                  }
-                  // 1 is end touch
-                  else if (evt.nativeEvent.type == "1") {
-                    onTouchEnd(evt);
-                  }
-                  // 2 is move touch
-                  else if (evt.nativeEvent.type == "2") {
-                    onTouchMove(evt);
-                  }
+                  return true;
                 }
               : undefined
           }
-          style={{ width: "100%", height: "100%" }}
+          onStartShouldSetResponderCapture={
+            Platform.OS === "ios"
+              ? (evt) => {
+                  return true;
+                }
+              : undefined
+          }
+          onResponderGrant={Platform.OS === "ios" ? onTouchStart : undefined}
+          onResponderMove={Platform.OS === "ios" ? onTouchMove : undefined}
+          onResponderRelease={Platform.OS === "ios" ? onTouchEnd : undefined}
         >
-          <WebView
-            bounces={false}
-            originWhitelist={["*"]}
-            allowsInlineMediaPlayback
-            style={[styles.webView, webViewStyle]}
-            mediaPlaybackRequiresUserAction={false}
-            onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
-            allowsFullscreenVideo={
-              !initialPlayerParamsRef.current.preventFullScreen
-            }
-            userAgent={
-              forceAndroidAutoplay
-                ? Platform.select({ android: CUSTOM_USER_AGENT, ios: "" })
-                : ""
-            }
-            // props above this are override-able
-
-            // --
-            {...webViewProps}
-            // --
-
-            // add props that should not be allowed to be overridden below
-            source={source}
-            ref={webViewRef}
-            onMessage={onWebMessage}
-          />
-        </HandleTouchView>
-        {playerOverlayVisible && (
-          <View
-            style={[
-              styles.overlay,
-              { top: height / 2 - 25, left: width / 2 - 25 },
-            ]}
+          <HandleTouchView
+            onTouch={(evt: any) => {
+              // 0 is start touch
+              if (evt.nativeEvent.type == "0") {
+                onTouchStart(evt);
+              }
+              // 1 is end touch
+              else if (evt.nativeEvent.type == "1") {
+                onTouchEnd(evt);
+              }
+              // 2 is move touch
+              else if (evt.nativeEvent.type == "2") {
+                onTouchMove(evt);
+              }
+            }}
+            style={{ width: "100%", height: "100%" }}
           >
-            <PlayerOverlayView
-              visible={playerOverlayVisible}
-              ref={overlayRef}
+            <WebView
+              bounces={false}
+              originWhitelist={['*']}
+              allowsInlineMediaPlayback
+              style={[styles.webView, webViewStyle]}
+              mediaPlaybackRequiresUserAction={false}
+              onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
+              allowsFullscreenVideo={
+                !initialPlayerParamsRef.current.preventFullScreen
+              }
+              userAgent={
+                forceAndroidAutoplay
+                  ? Platform.select({android: CUSTOM_USER_AGENT, ios: ''})
+                  : ''
+              }
+              // props above this are override-able
+
+              // --
+              {...webViewProps}
+              // --
+
+              // add props that should not be allowed to be overridden below
+              source={source}
+              ref={webViewRef}
+              onMessage={onWebMessage}
             />
-          </View>
-        )}
-        <SeekOverlayView ref={seekOverlayViewRef} />
-      </View>
+          </HandleTouchView>
+          {playerOverlayVisible && (
+            <View
+              style={[
+                styles.overlay,
+                { top: height / 2 - 25, left: width / 2 - 25 },
+              ]}
+            >
+              <PlayerOverlayView
+                visible={playerOverlayVisible}
+                ref={overlayRef}
+              />
+            </View>
+          )}
+          <SeekOverlayView ref={seekOverlayViewRef} />
+        </View>
+        <SeekControlView onDbClickLeft={onSeekLeft} onDbClickRight={onSeekRight} />
       <DisableControlOverlayView width={width} height={height} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  webView: { backgroundColor: "transparent", width: "100%", height: "100%" },
+  webView: { backgroundColor: "transparent" },
   overlay: {
     position: "absolute",
     margin: "auto",

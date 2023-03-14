@@ -5,7 +5,7 @@
  * @param {string | string[]} playList
  * @returns true if the two are equal
  */
-const deepComparePlayList = (lastPlayList, playList) => {
+const deepComparePlayList = (lastPlayList: string, playList: string) => {
     if (lastPlayList === playList) {
       return true;
     }

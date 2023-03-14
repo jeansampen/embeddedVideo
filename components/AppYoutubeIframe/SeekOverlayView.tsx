@@ -7,7 +7,7 @@ import React, {
 import { View, Image, StyleSheet, Animated, Text } from "react-native";
 import { useHover } from "react-native-web-hooks";
 
-const SeekOverlayView = (props, ref) => {
+const SeekOverlayView = (props: any, ref: any) => {
   const animatedLeftValue = useRef(new Animated.Value(0)).current;
   const animatedRightValue = useRef(new Animated.Value(0)).current;
 
@@ -15,8 +15,8 @@ const SeekOverlayView = (props, ref) => {
     ref,
     () => ({
       //side: 0: 'left' or 1: 'right'
-      onDoAnimation: (side) => {
-        var animatedValue = null;
+      onDoAnimation: (side: number) => {
+        var animatedValue: Animated.Value | null  = null;
         if (side === 0) {
           animatedValue = animatedLeftValue;
         } else if (side === 1) {
@@ -32,11 +32,13 @@ const SeekOverlayView = (props, ref) => {
         }).start((endResult) => {
           if (endResult?.finished === true) {
             setTimeout(() => {
-              Animated.timing(animatedValue, {
-                toValue: 0,
-                duration: 600,
-                useNativeDriver: true,
-              }).start();
+              if(animatedValue){
+                Animated.timing(animatedValue, {
+                  toValue: 0,
+                  duration: 600,
+                  useNativeDriver: true,
+                }).start();
+              }
             }, 100);
           }
         });

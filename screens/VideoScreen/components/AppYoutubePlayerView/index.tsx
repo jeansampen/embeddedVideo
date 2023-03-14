@@ -8,6 +8,7 @@ import OverlayView from '../OverlayView';
 import { useState } from 'react';
 import { IAppYoutubeIframePropsProps } from './types';
 import AppYoutubeIframe from '../../../../components/AppYoutubeIframe/AppYoutubeIframe';
+import DoubleTapView from '../../../../components/DoubleTapView';
 
 const DELAY_TIME_TO_CHANGE_PLAY_STATE = 1000;
 
@@ -107,20 +108,21 @@ const AppYoutubePlayerView = (props: IAppYoutubeIframePropsProps, ref?: any) => 
     return (
         <View style={{ position: 'relative', width: props.width, height: props.height}}>
             <AppYoutubeIframe
-                ref={playerRef}
-                {...props}
-                play={isPlaying}
-                onChangeState={onStateChange}
-                onReady={onPlayerReady}
-                initialPlayerParams={{
-                    preventFullScreen: true,
-                }}
-                onCurrentTouchAction={onCurrentTouchAction}
-                onUpdateVisibilityPauseOverlay={onUpdateVisibilityPauseOverlay}
-                onPlayerPlayed={onPlayerPlayed}
-                forceAndroidAutoplay={true}
-                webViewStyle={{display: isPlayerReady ? 'flex' : 'none'}}
-            />
+                    ref={playerRef}
+                    {...props}
+                    play={isPlaying}
+                    onChangeState={onStateChange}
+                    onReady={onPlayerReady}
+                    initialPlayerParams={{
+                        preventFullScreen: true,
+                    }}
+                    onCurrentTouchAction={onCurrentTouchAction}
+                    onUpdateVisibilityPauseOverlay={onUpdateVisibilityPauseOverlay}
+                    onPlayerPlayed={onPlayerPlayed}
+                    forceAndroidAutoplay={true}
+                    webViewStyle={{display: isPlayerReady ? 'flex' : 'none'}}
+                />
+            
             {isPlayerReady && isPauseOverlayVisible && currentTouchAction !== 2 && currentTouchAction !== 1 && <OverlayView 
                 onPress={onPlayVideo}
                 imageSource={props.pausingBgSource}
